@@ -36,6 +36,8 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
+print("TensorFlow version: ", tf.__version__)
+assert version.parse(tf.__version__).release[0] >= 2,     "This notebook requires TensorFlow 2.0 or above."
 
 # Weight initializers for the Generator network
 WEIGHT_INIT = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.2)
@@ -484,10 +486,11 @@ def build_discriminator(inputs):
 
 
 class ResUnetGAN(tf.keras.models.Model):
-    def __init__(self, discriminator, generator):
+    def __init__(self, generator, discriminator):
         super(ResUnetGAN, self).__init__()
-        self.discriminator = discriminator
         self.generator = generator
+        self.discriminator = discriminator
+       
         # Regularization Rate for each loss function
         self.ADV_REG_RATE_LF = 1
         self.REC_REG_RATE_LF = 50
@@ -498,11 +501,10 @@ class ResUnetGAN(tf.keras.models.Model):
         self.g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-4, beta_1=0.5, beta_2=0.999)
     
 
-    def compile(self, d_optimizer, g_optimizer, filepath):
+    def compile(self, g_optimizer, d_optimizer, filepath):
         super(ResUnetGAN, self).compile()
-        self.d_optimizer = d_optimizer
         self.g_optimizer = g_optimizer
-        
+        self.d_optimizer = d_optimizer
 #         columns name (epoch, gen_loss, disc_loss)
 
         logs = pd.DataFrame([], columns=self.field_names)
@@ -573,7 +575,7 @@ class ResUnetGAN(tf.keras.models.Model):
         self.discriminator.load_weights(d_filepath)
         
     # load and save data of training process
-    def load_save_processing(self,filepath, epoch_num, disc_loss, gen_loss, d_filepath, g_filepath, resume=False):
+    def load_save_processing(self,filepath, epoch_num, disc_loss, gen_loss, g_filepath, d_filepath, resume=False):
         # columns name (epoch, gen_loss, disc_loss)
 
         if resume:
@@ -697,14 +699,16 @@ class ResUnetGAN(tf.keras.models.Model):
 # In[ ]:
 
 
-def run_trainning(modelClass, train_dataset,num_epochs, pathGmodal, pathDmodal, pathLogs, name_model, resume=False):
+def run_trainning(modelClass, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, name_model, resume=False):
+    
+    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
     array_elapsed = []
     epochs_list = []
     gen_loss_list = []
     disc_loss_list = []
     skip_epoch = 0
     if resume:
-        skip_epoch, epochs_list,disc_loss_list, gen_loss_list = modelClass.load_save_processing(pathLogs, num_epochs, disc_loss_list, gen_loss_list, pathDmodal, pathGmodal, resume=resume)
+        skip_epoch, epochs_list,disc_loss_list, gen_loss_list = modelClass.load_save_processing(logs_file, num_epochs, disc_loss_list, gen_loss_list, path_gmodal, path_dmodal, resume=resume)
     
     for epoch in range(num_epochs+1):
         if epoch <= skip_epoch:
@@ -717,10 +721,10 @@ def run_trainning(modelClass, train_dataset,num_epochs, pathGmodal, pathDmodal, 
         disc_loss_list.append(r.history["disc_loss"][0])
 #         print(r.history["gen_loss"][0], r.history["disc_loss"][0] )
         if (epoch + 1) % 15 == 0 or (epoch + 1) <= 15:
-            resunetgan.saved_model(pathGmodal, pathDmodal)
+            resunetgan.saved_model(path_gmodal, path_dmodal)
             print('saved for epoch',epoch + 1)
             
-        modelClass.load_save_processing(pathLogs, epoch, r.history["disc_loss"][0], r.history["gen_loss"][0], pathDmodal, pathGmodal, resume=False)         
+        modelClass.load_save_processing(logs_file, epoch, r.history["disc_loss"][0], r.history["gen_loss"][0], path_gmodal, path_dmodal, resume=False)         
         later = datetime.now()
         elapsed_time =  (later - now).total_seconds()
         array_elapsed = np.append(array_elapsed, elapsed_time)
@@ -746,8 +750,8 @@ if __name__ == "__main__":
     
     
     # run the function here
-    nameModel= str(IMG_H)+"_rgb_normal"
-    print("start: ", nameModel)
+    name_model= str(IMG_H)+"_rgb_normal"
+    print("start: ", name_model)
     """ Set Hyperparameters """
     batch_size = 25
     num_epochs = 2
@@ -757,12 +761,13 @@ if __name__ == "__main__":
     train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
     test_data_path = "mura_data/RGB/test_data"
     saved_model_path = "mura_data/RGB/saved_model/"
-    logsPath = "mura_data/RGB/logs/"
+    
+    logs_path = "mura_data/RGB/logs/"
     
     
-    pathGmodal = saved_model_path + nameModel + "g_model" + str(num_epochs) + ".h5"
-    pathDmodal = saved_model_path +  nameModel + "d_model" + str(num_epochs) + ".h5"
-    pathLogs = logsPath + "logs_" + nameModel + str(num_epochs) + ".csv"
+    path_gmodal = saved_model_path + name_model + "g_model" + str(num_epochs) + ".h5"
+    path_dmodal = saved_model_path +  name_model + "d_model" + str(num_epochs) + ".h5"
+    
     
     input_shape = (IMG_H, IMG_W, IMG_C)
     # print(input_shape)
@@ -773,34 +778,32 @@ if __name__ == "__main__":
     # set input 
     inputs = tf.keras.layers.Input(input_shape, name="input_1")
     
+    g_model = build_generator_resnet50_unet(inputs)
+    
     d_model = build_discriminator(inputs)
     
-    g_model = build_generator_resnet50_unet(inputs)
+    
 
 #     d_model.summary()
 #     g_model.summary()
     
-    resunetgan = ResUnetGAN(d_model, g_model)
+    resunetgan = ResUnetGAN(g_model, d_model)
 
 
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-4, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-4, beta_1=0.5, beta_2=0.999)
-    resunetgan.compile(d_optimizer, g_optimizer, pathLogs)
+    
+    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
+    resunetgan.compile(g_optimizer, d_optimizer, logs_file)
 
     train_images = glob(train_images_path)
     train_images_dataset = load_image_train(train_images, batch_size)
     
 #     print(train_images_dataset)
     """ run trainning process """
-    run_trainning(resunetgan, train_images_dataset, num_epochs, pathGmodal, pathDmodal, pathLogs, nameModel,resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model,resume=resume_trainning)
     
     """ run testing """
-    resunetgan.testing(test_data_path, pathGmodal, pathDmodal, nameModel)
+    resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
 #     resunetgan.checking_gen_disc(pathGmodal, pathDmodal)
-
-
-# In[ ]:
-
-
-
 
