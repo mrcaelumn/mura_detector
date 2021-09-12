@@ -731,8 +731,8 @@ def run_trainning(modelClass, train_dataset,num_epochs, path_gmodal, path_dmodal
         print("Time Consumend of this epoch: ", elapsed_time)
     
     print("Duration of trainning Data: ", np.sum(array_elapsed), " seconds")
-    plot_epoch_result(epochs_list, gen_loss_list, "Generator Loss", name_model)
-    plot_epoch_result(epochs_list, disc_loss_list, "Discriminator Loss", name_model)
+    plot_epoch_result(epochs_list, gen_loss_list, "Generator_Loss", name_model)
+    plot_epoch_result(epochs_list, disc_loss_list, "Discriminator_Loss", name_model)
 
 
 # In[ ]:
