@@ -608,7 +608,7 @@ class ResUnetGAN(tf.keras.models.Model):
             
             
     def testing(self, filepath, g_filepath, d_filepath, name_model):
-#         threshold = 0.2
+#         threshold = 0.7
         class_names = ["normal", "defect"] # normal = 0, defect = 1
         test_dateset = load_image_test(filepath, class_names)
         # print(test_dateset)
@@ -654,6 +654,7 @@ class ResUnetGAN(tf.keras.models.Model):
 
         print("scores_ano: ", scores_ano)
         print("real_label: ", real_label)
+#         scores_ano = (scores_ano > threshold).astype(int)
         auc_out, threshold = roc(real_label, scores_ano, name_model)
         print("auc: ", auc_out)
         print("threshold: ", threshold)
@@ -683,21 +684,26 @@ class ResUnetGAN(tf.keras.models.Model):
     def checking_gen_disc(self, g_filepath, d_filepath):
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
-        path = "mura_data/RGB/train_data/normal/normal.bmp"
-        image = tf.keras.preprocessing.image.load_img(path, target_size=(128,128))
-        
-        array_image = tf.keras.preprocessing.image.img_to_array(image)
-        
-        array_image = tf.reshape(array_image, (-1, 128, 128, 3))
-        images = tf_clahe.clahe(array_image)
+        path = "rgb_serius_defect/042811P20.bmp"
+        image = tf.keras.preprocessing.image.load_img(path, target_size=(IMG_H,IMG_W))
         plt.figure()
-        plt.imshow(images)
-        reconstructed_images = self.generator(images, training=False)
+        plt.imshow(image)
+        plt.savefig('normal_images_defect3.png')
+        image = tf.keras.preprocessing.image.img_to_array(image)
         
-        reconstructed_images = tf.cast(reconstructed_images[0], tf.float32)
+        
+#         images = tf_clahe.clahe(images)
+#         image = bcet_processing(image)
+#         plt.figure()
+#         plt.imshow(image.numpy().astype("uint8"))
+#         plt.savefig('normal_images_bcet_defect3.png')
+        image = tf.reshape(image, (-1, IMG_H, IMG_W, IMG_C))
+        reconstructed_images = self.generator(image, training=False)
+        
+        reconstructed_images = tf.cast(reconstructed_images, tf.float64)
         plt.figure()
-        plt.imshow(reconstructed_images)
-        plt.close()
+        plt.imshow(reconstructed_images[0])
+        plt.savefig('recontructed_normal_images_defect3.png')
 
 
 # In[ ]:
@@ -805,9 +811,9 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model,resume=resume_trainning)
+#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
-#     resunetgan.checking_gen_disc(pathGmodal, pathDmodal)
+#     resunetgan.checking_gen_disc(path_gmodal, path_dmodal)
 
