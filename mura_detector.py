@@ -324,6 +324,7 @@ def plot_roc_curve(fpr, tpr, name_model):
     plt.legend()
     plt.savefig(name_model+'_roc_curve.png')
     plt.show()
+    plt.close()
     
 
 
@@ -380,6 +381,7 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.savefig(title+'_cm.png')
+    plt.close()
 
 
 # In[ ]:
@@ -394,6 +396,7 @@ def plot_epoch_result(epochs, loss, name, model_name):
     plt.legend()
     plt.savefig(model_name+ '_'+name+'_epoch_result.png')
     plt.show()
+    plt.close()
 
 
 # In[ ]:
@@ -694,6 +697,7 @@ class ResUnetGAN(tf.keras.models.Model):
         reconstructed_images = tf.cast(reconstructed_images[0], tf.float32)
         plt.figure()
         plt.imshow(reconstructed_images)
+        plt.close()
 
 
 # In[ ]:
@@ -754,7 +758,7 @@ if __name__ == "__main__":
     print("start: ", name_model)
     """ Set Hyperparameters """
     batch_size = 25
-    num_epochs = 2
+    num_epochs = 600
     resume_trainning = False
     
     # set dir of files
