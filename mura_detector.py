@@ -190,6 +190,7 @@ def prep_stage(x):
     
     ### crop or pad images
     x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
+#     x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
 
 def augment_dataset_batch_train(dataset_batch):
@@ -681,29 +682,71 @@ class ResUnetGAN(tf.keras.models.Model):
         print("F1-Score: ", f1_score(real_label, scores_ano))
         
         
-    def checking_gen_disc(self, g_filepath, d_filepath):
+    def checking_gen_disc(self, mode, g_filepath, d_filepath):
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
-        path = "rgb_serius_defect/042811P20.bmp"
-        image = tf.keras.preprocessing.image.load_img(path, target_size=(IMG_H,IMG_W))
-        plt.figure()
-        plt.imshow(image)
-        plt.savefig('normal_images_defect3.png')
-        image = tf.keras.preprocessing.image.img_to_array(image)
+#         path = "mura_data/RGB/test_data/normal/normal.bmp"
+#         path = "mura_data/RGB/test_data/defect/defect.bmp"
+#         path = "rgb_serius_defect/BUTTERFLY (2).bmp"
+        paths = {
+            "normal": "mura_data/RGB/test_data/normal/normal.bmp",
+            "defect": "mura_data/RGB/test_data/defect/defect.bmp",
+            "butterfly_defect": "rgb_serius_defect/BUTTERFLY (2).bmp",
+            "water_defect": "rgb_serius_defect/0428-12 P20.bmp"
+        }
+   
+        for i, v in paths.items():
+            print(i,v)
+            
+            width=128
+            height=128
+            rows = 1
+            cols = 3
+            axes=[]
+            fig = plt.figure()
+            
+            
+            img = tf.io.read_file(v)
+            img = tf.io.decode_bmp(img, channels=IMG_C)
+            
+            name_subplot = mode+'_original_'+i
+            axes.append( fig.add_subplot(rows, cols, 1) )
+            axes[-1].set_title('_original_')  
+            plt.imshow(img.numpy().astype("int64"), alpha=1.0)
+            plt.axis('off')
+#             plt.savefig(name_original+'.png')
         
         
-#         images = tf_clahe.clahe(images)
-#         image = bcet_processing(image)
-#         plt.figure()
-#         plt.imshow(image.numpy().astype("uint8"))
-#         plt.savefig('normal_images_bcet_defect3.png')
-        image = tf.reshape(image, (-1, IMG_H, IMG_W, IMG_C))
-        reconstructed_images = self.generator(image, training=False)
         
-        reconstructed_images = tf.cast(reconstructed_images, tf.float64)
-        plt.figure()
-        plt.imshow(reconstructed_images[0])
-        plt.savefig('recontructed_normal_images_defect3.png')
+            img = prep_stage(img)
+            img = tf.cast(img, tf.float64)
+
+            name_subplot = mode+'_preprocessing_'+i
+            axes.append( fig.add_subplot(rows, cols, 2) )
+            axes[-1].set_title('_preprocessing_')  
+            plt.imshow(img.numpy().astype("int64"), alpha=1.0)
+            plt.axis('off')
+            img = (img - 127.5) / 127.5
+#             plt.savefig(mode+'_preprocessing_'+i+'.png')
+   
+        
+            image = tf.reshape(img, (-1, IMG_H, IMG_W, IMG_C))
+            reconstructed_images = self.generator(image, training=False)
+
+#             reconstructed_images = reconstructed_images[0, :, :, 0] * 127.5 + 127.5
+#             reconstructed_images = reconstructed_images[0]
+            reconstructed_images = reconstructed_images[0] * 127.5 + 127.5
+
+            name_subplot = mode+'_reconstructed_'+i
+            axes.append( fig.add_subplot(rows, cols, 3) )
+            axes[-1].set_title('_reconstructed_') 
+            plt.imshow(reconstructed_images.numpy().astype("int64"), alpha=1.0)
+            plt.axis('off')
+            
+            fig.tight_layout()    
+            fig.savefig(mode+'_'+i+'.png')
+            plt.show()
+            
 
 
 # In[ ]:
@@ -759,8 +802,10 @@ if __name__ == "__main__":
     '''
     
     
+    
     # run the function here
-    name_model= str(IMG_H)+"_rgb_normal"
+    mode = "normal"
+    name_model= str(IMG_H)+"_rgb_"+mode
     print("start: ", name_model)
     """ Set Hyperparameters """
     batch_size = 25
@@ -806,14 +851,21 @@ if __name__ == "__main__":
     logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
     resunetgan.compile(g_optimizer, d_optimizer, logs_file)
 
-    train_images = glob(train_images_path)
-    train_images_dataset = load_image_train(train_images, batch_size)
+
     
 #     print(train_images_dataset)
     """ run trainning process """
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model,resume=resume_trainning)
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
-#     resunetgan.checking_gen_disc(path_gmodal, path_dmodal)
+#     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal)
+
+
+# In[ ]:
+
+
+
 
