@@ -189,8 +189,8 @@ def prep_stage(x):
 #     x = bcet_processing(x)
     
     ### crop or pad images
-    x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
-#     x = tf.image.resize(x, (IMG_H, IMG_W))
+#     x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
+    x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
 
 def augment_dataset_batch_train(dataset_batch):
@@ -415,7 +415,7 @@ def conv_block(input, num_filters):
     return x
 
 def decoder_block(input, skip_features, num_filters):
-    x = tf.keras.layers.Conv2DTranspose(num_filters, (2, 2), strides=1, padding="same")(input)
+    x = tf.keras.layers.Conv2DTranspose(num_filters, (2, 2), strides=2, padding="same")(input)
     x = tf.keras.layers.Concatenate()([x, skip_features])
     x = conv_block(x, num_filters)
     return x
@@ -501,8 +501,8 @@ class ResUnetGAN(tf.keras.models.Model):
         self.SSIM_REG_RATE_LF = 10
         self.FEAT_REG_RATE_LF = 1
         self.field_names = ['epoch', 'gen_loss', 'disc_loss']
-        self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-4, beta_1=0.5, beta_2=0.999)
-        self.g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-4, beta_1=0.5, beta_2=0.999)
+        self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
+        self.g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
     
 
     def compile(self, g_optimizer, d_optimizer, filepath):
