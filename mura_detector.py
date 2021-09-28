@@ -467,7 +467,7 @@ def build_discriminator(inputs):
     f = [2**i for i in range(4)]
     x = inputs
     for i in range(0, 4):
-        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (5, 5), strides=(1, 1), padding='same', kernel_initializer=WEIGHT_INIT)(inputs)
+        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (5, 5), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(inputs)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
         x = tf.keras.layers.Dropout(0.3)(x)
