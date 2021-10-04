@@ -143,17 +143,26 @@ def bcet(img):
     Gmean = tf.constant(110, dtype="float32") #MEAN OF OUTPUT IMAGE
     
     subber = tf.constant(2, dtype="float32")
-
-    bnum = Lmax * Lmax *(Gmean-Gmin) - LMssum*(Gmax-Gmin) + Lmin * Lmin *(Gmax-Gmean)
-    bden = subber*(Lmax*(Gmean-Gmin)-Lmean*(Gmax-Gmin)+Lmin*(Gmax-Gmean))
-
+    
+    # find b
+    
+    bnum = ((Lmax**subber)*(Gmean-Gmin)) - (LMssum*(Gmax-Gmin)) + ((Lmin**subber) *(Gmax-Gmean))
+    bden = subber * ((Lmax*(Gmean-Gmin)) - (Lmean*(Gmax-Gmin)) + (Lmin*(Gmax-Gmean)))
+    
     b = bnum/bden
-
-    a = (Gmax-Gmin)/((Lmax-Lmin)*(Lmax+Lmin-subber*b))
-
-    c = Gmin - a*(Lmin-b) * (Lmin-b)
-
-    y = a * (img-b) * (img-b) + c #PARABOLIC FUNCTION
+    
+    # find a
+    a1 = Gmax-Gmin
+    a2 = Lmax-Lmin
+    a3 = Lmax+Lmin-(subber*b)
+            
+    a = a1/(a2*a3)
+    
+    # find c
+    c = Gmin - (a*(Lmin-b)**subber)
+    
+    # Process raster
+    y = a*((img - b)**subber) + c #PARABOLIC FUNCTION
 
     return y
 
@@ -398,11 +407,11 @@ def plot_epoch_result(epochs, loss, name, model_name):
 def conv_block(input, num_filters):
     x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(input)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation("relu")(x)
+    x = tf.keras.layers.LeakyReLU(0.2)(x)
 
     x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation("relu")(x)
+    x = tf.keras.layers.LeakyReLU(0.2)(x)
 
     return x
 
@@ -496,7 +505,7 @@ class ResUnetGAN(tf.keras.models.Model):
         self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
         self.g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
     
-
+    
     def compile(self, g_optimizer, d_optimizer, filepath):
         super(ResUnetGAN, self).compile()
         self.g_optimizer = g_optimizer
@@ -508,7 +517,7 @@ class ResUnetGAN(tf.keras.models.Model):
         if not fileExist:
             print("file not found. then we create new file")
             logs.to_csv(filepath, encoding='utf-8', index=False)
-        
+            
 # Notice the use of `tf.function`
 # This annotation causes the function to be "compiled".
     @tf.function
@@ -672,7 +681,7 @@ class ResUnetGAN(tf.keras.models.Model):
         print("recall_score: ", TP/(TP+FN))
 #         F1 = 2 * (precision * recall) / (precision + recall)
         print("F1-Score: ", f1_score(real_label, scores_ano))
-        
+    
         
     def checking_gen_disc(self, mode, g_filepath, d_filepath):
         self.generator.load_weights(g_filepath)
@@ -718,7 +727,7 @@ class ResUnetGAN(tf.keras.models.Model):
             axes[-1].set_title('_preprocessing_')  
             plt.imshow(img.numpy().astype("int64"), alpha=1.0)
             plt.axis('off')
-            img = (img - 127.5) / 127.5
+#             img = (img - 127.5) / 127.5
 #             plt.savefig(mode+'_preprocessing_'+i+'.png')
    
         
@@ -726,8 +735,8 @@ class ResUnetGAN(tf.keras.models.Model):
             reconstructed_images = self.generator(image, training=False)
 
 #             reconstructed_images = reconstructed_images[0, :, :, 0] * 127.5 + 127.5
-#             reconstructed_images = reconstructed_images[0]
-            reconstructed_images = reconstructed_images[0] * 127.5 + 127.5
+            reconstructed_images = reconstructed_images[0]
+#             reconstructed_images = reconstructed_images[0] * 127.5 + 127.5
 
             name_subplot = mode+'_reconstructed_'+i
             axes.append( fig.add_subplot(rows, cols, 3) )
@@ -745,11 +754,19 @@ class ResUnetGAN(tf.keras.models.Model):
 
 class CustomSaver(tf.keras.callbacks.Callback):
     def __init__(self,
-         g_model_path,
-         d_model_path):
+                 g_model_path,
+                 d_model_path,
+                 logs_file,
+                 name_model
+                ):
         super(CustomSaver, self).__init__()
         self.g_model_path = g_model_path
         self.d_model_path = d_model_path
+        self.logs_file = logs_file
+        self.name_model = name_model
+        self.epochs_list = []
+        self.gen_loss_list = []
+        self.disc_loss_list = []
         
     
     def on_train_begin(self, logs=None):
@@ -759,29 +776,55 @@ class CustomSaver(tf.keras.callbacks.Callback):
             
     def on_train_end(self, logs=None):
         self.model.saved_model(self.g_model_path, self.d_model_path)
+        
+        self.plot_epoch_result(self.epochs_list, self.gen_loss_list, "Generator_Loss", self.name_model)
+        self.plot_epoch_result(self.epochs_list, self.disc_loss_list, "Discriminator_Loss", self.name_model)
     
     def on_epoch_end(self, epoch, logs={}):
         logs = logs or {}
         self.epoch.append(epoch)
         for k, v in logs.items():
-            print(k, v)
+#             print(k, v)
             self.history.setdefault(k, []).append(v)
+        
+        self.epochs_list.append(epoch)
+        self.gen_loss_list.append(logs["gen_loss"])
+        self.disc_loss_list.append(logs["disc_loss"])
+        
+        
+        self.model.load_save_processing(logs_file, epoch, logs["disc_loss"], logs["gen_loss"], self.g_model_path, self.d_model_path, resume=False) 
         
         if (epoch + 1) % 15 == 0 or (epoch + 1) <= 15:
             self.model.saved_model(self.g_model_path, self.d_model_path)
             print('saved for epoch',epoch + 1)
+            
+    def plot_epoch_result(self, epochs, loss, name, model_name):
+        plt.plot(epochs, loss, 'g', label=name)
+    #     plt.plot(epochs, disc_loss, 'b', label='Discriminator loss')
+        plt.title(name)
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig(model_name+ '_'+name+'_epoch_result.png')
+        plt.show()
 
+        
 def scheduler(epoch, lr):
     if epoch < 1000:
         return lr
     else:
-        return lr * tf.math.exp(0.1 * (1000 - epoch))
+        return lr * tf.math.exp(-0.1)
 
-def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal):
+def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps):
     # create and use callback:
+    
+    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
+    
     saver_callback = CustomSaver(
         path_gmodal,
-        path_dmodal
+        path_dmodal,
+        logs_file,
+        name_model
     )
 #     checkpoints_callback = tf.keras.callbacks.ModelCheckpoint(
 #         filepath=os.path.join(checkpoints_path, "checkpt"),
@@ -794,6 +837,8 @@ def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal):
         log_dir=logs_path + name_model + "/" + datetime.now().strftime("%Y%m%d-%H%M%S"), 
         histogram_freq=1
     )
+    
+
     callbacks = [
         saver_callback,
 #         checkpoints_callback,
@@ -806,12 +851,9 @@ def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal):
 # In[ ]:
 
 
-def run_trainning(modelClass, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, name_model, resume=False):
-    
-    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
-    
-    callbacks = set_callbacks(name_model, logs_path, path_gmodal, path_dmodal)
-    modelClass.fit(train_dataset, epochs=num_epochs, callbacks=callbacks, initial_epoch=0)
+def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, name_model, steps, resume=False):
+    callbacks = set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps)
+    model.fit(train_dataset, epochs=num_epochs, callbacks=callbacks, initial_epoch=0)
 
 
 # In[ ]:
@@ -836,11 +878,12 @@ if __name__ == "__main__":
     print("start: ", name_model)
     """ Set Hyperparameters """
     batch_size = 25
-    num_epochs = 2
+    num_epochs = 1300
     resume_trainning = False
+    lr = 1e-3
     
     # set dir of files
-    train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
+    train_images_path = "mura_data/RGB/train_data/test_normal/*.bmp"
     test_data_path = "mura_data/RGB/test_data"
     saved_model_path = "mura_data/RGB/saved_model/"
     
@@ -870,21 +913,24 @@ if __name__ == "__main__":
 #     g_model.summary()
     
     resunetgan = ResUnetGAN(g_model, d_model)
+    
 
-
-    g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
-    d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
+    g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     
     logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
     resunetgan.compile(g_optimizer, d_optimizer, logs_file)
-
+    
 
     
 #     print(train_images_dataset)
     """ run trainning process """
     train_images = glob(train_images_path)
     train_images_dataset = load_image_train(train_images, batch_size)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model,resume=resume_trainning)
+    size_of_dataset = len(list(train_images_dataset)) * batch_size
+    
+    steps = int(size_of_dataset/batch_size)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
