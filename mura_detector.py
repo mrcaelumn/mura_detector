@@ -6,10 +6,10 @@
 
 # importing Neccessary Library and constant variable
 
-get_ipython().system('pip install tf_clahe')
-get_ipython().system('pip install -U scikit-learn')
-get_ipython().system('pip install matplotlib')
-get_ipython().system('pip install pandas')
+# get_ipython().system('pip install tf_clahe')
+# get_ipython().system('pip install -U scikit-learn')
+# get_ipython().system('pip install matplotlib')
+# get_ipython().system('pip install pandas')
 
 
 # In[ ]:
@@ -59,8 +59,8 @@ class SSIMLoss(tf.keras.losses.Loss):
         ori = tf.cast(ori, recon.dtype)
 
         # Loss 3: SSIM Loss
-        loss_ssim =  tf.reduce_mean(1 - tf.image.ssim(ori, recon, max_val=1.0)[0]) 
-
+#         loss_ssim =  tf.reduce_mean(1 - tf.image.ssim(ori, recon, max_val=1.0)[0]) 
+        loss_ssim = tf.reduce_mean(1 - tf.image.ssim(ori, recon, 2.0))
         return loss_ssim
     
 # class for Feature loss function
@@ -727,16 +727,16 @@ class ResUnetGAN(tf.keras.models.Model):
             axes[-1].set_title('_preprocessing_')  
             plt.imshow(img.numpy().astype("int64"), alpha=1.0)
             plt.axis('off')
-#             img = (img - 127.5) / 127.5
+            img = (img - 127.5) / 127.5
 #             plt.savefig(mode+'_preprocessing_'+i+'.png')
    
         
             image = tf.reshape(img, (-1, IMG_H, IMG_W, IMG_C))
-            reconstructed_images = self.generator(image, training=False)
-
+            reconstructed_images = self.generator.predict(image)
+            reconstructed_images = tf.reshape(reconstructed_images, (IMG_H, IMG_W, IMG_C))
 #             reconstructed_images = reconstructed_images[0, :, :, 0] * 127.5 + 127.5
-            reconstructed_images = reconstructed_images[0]
-#             reconstructed_images = reconstructed_images[0] * 127.5 + 127.5
+#             reconstructed_images = reconstructed_images[0]
+            reconstructed_images = reconstructed_images * 127 + 127
 
             name_subplot = mode+'_reconstructed_'+i
             axes.append( fig.add_subplot(rows, cols, 3) )
@@ -852,8 +852,17 @@ def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps):
 
 
 def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, name_model, steps, resume=False):
+    init_epoch = 0
+    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
+    
     callbacks = set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps)
-    model.fit(train_dataset, epochs=num_epochs, callbacks=callbacks, initial_epoch=0)
+    if resume:
+        print("resuming trainning. ", name_model)
+        skip_epoch, _, _, _ = model.load_save_processing(logs_file, num_epochs, [], [], path_gmodal, path_dmodal, resume=resume)
+        if skip_epoch < num_epochs:
+            init_epoch = skip_epoch
+            
+    model.fit(train_dataset, epochs=num_epochs, callbacks=callbacks, initial_epoch=init_epoch)
 
 
 # In[ ]:
@@ -878,9 +887,9 @@ if __name__ == "__main__":
     print("start: ", name_model)
     """ Set Hyperparameters """
     batch_size = 25
-    num_epochs = 1300
+    num_epochs = 1800
     resume_trainning = False
-    lr = 1e-3
+    lr = 2e-3
     
     # set dir of files
     train_images_path = "mura_data/RGB/train_data/test_normal/*.bmp"
