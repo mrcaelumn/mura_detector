@@ -506,17 +506,24 @@ class ResUnetGAN(tf.keras.models.Model):
         self.g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
     
     
-    def compile(self, g_optimizer, d_optimizer, filepath):
+    def compile(self, g_optimizer, d_optimizer, filepath, resume=False):
         super(ResUnetGAN, self).compile()
         self.g_optimizer = g_optimizer
         self.d_optimizer = d_optimizer
 #         columns name (epoch, gen_loss, disc_loss)
-
+        
+        
         logs = pd.DataFrame([], columns=self.field_names)
-        fileExist = os.path.exists(filepath)
-        if not fileExist:
-            print("file not found. then we create new file")
+
+        if not resume:
             logs.to_csv(filepath, encoding='utf-8', index=False)
+        else:
+            fileExist = os.path.exists(filepath)
+            if not fileExist:
+                print("file not found. then we create new file")
+                logs.to_csv(filepath, encoding='utf-8', index=False)
+            
+
             
 # Notice the use of `tf.function`
 # This annotation causes the function to be "compiled".
@@ -926,7 +933,7 @@ if __name__ == "__main__":
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     
-    resunetgan.compile(g_optimizer, d_optimizer, logs_file)
+    resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
 
     
@@ -942,3 +949,4 @@ if __name__ == "__main__":
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
 #     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal)
+
