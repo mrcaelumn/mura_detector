@@ -477,8 +477,8 @@ def build_discriminator(inputs):
     feature = x
     
     x = tf.keras.layers.Flatten()(x)
-#     output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
-    output = tf.keras.layers.Dense(1)(x)
+    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+#     output = tf.keras.layers.Dense(1)(x)
     
     
     model = tf.keras.models.Model(inputs, outputs = [feature, output])
@@ -810,7 +810,7 @@ class CustomSaver(tf.keras.callbacks.Callback):
 
         
 def scheduler(epoch, lr):
-    if epoch < 1000:
+    if epoch < 1500:
         return lr
     else:
         return lr * tf.math.exp(-0.1)
@@ -826,10 +826,6 @@ def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps):
         logs_file,
         name_model
     )
-#     checkpoints_callback = tf.keras.callbacks.ModelCheckpoint(
-#         filepath=os.path.join(checkpoints_path, "checkpt"),
-#         save_freq = 1
-#     )
     
     lr_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     
@@ -887,12 +883,12 @@ if __name__ == "__main__":
     print("start: ", name_model)
     """ Set Hyperparameters """
     batch_size = 25
-    num_epochs = 1800
+    num_epochs = 1300
     resume_trainning = False
     lr = 2e-3
     
     # set dir of files
-    train_images_path = "mura_data/RGB/train_data/test_normal/*.bmp"
+    train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
     test_data_path = "mura_data/RGB/test_data"
     saved_model_path = "mura_data/RGB/saved_model/"
     
@@ -944,10 +940,4 @@ if __name__ == "__main__":
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
 #     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal)
-
-
-# In[ ]:
-
-
-
 
