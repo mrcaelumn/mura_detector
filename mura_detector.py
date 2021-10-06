@@ -815,10 +815,8 @@ def scheduler(epoch, lr):
     else:
         return lr * tf.math.exp(-0.1)
 
-def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps):
+def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, steps):
     # create and use callback:
-    
-    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
     
     saver_callback = CustomSaver(
         path_gmodal,
@@ -847,11 +845,11 @@ def set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps):
 # In[ ]:
 
 
-def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, name_model, steps, resume=False):
+def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=False):
     init_epoch = 0
-    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
     
-    callbacks = set_callbacks(name_model, logs_path, path_gmodal, path_dmodal, steps)
+    
+    callbacks = set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, steps)
     if resume:
         print("resuming trainning. ", name_model)
         skip_epoch, _, _, _ = model.load_save_processing(logs_file, num_epochs, [], [], path_gmodal, path_dmodal, resume=resume)
@@ -878,14 +876,18 @@ if __name__ == "__main__":
     
     
     # run the function here
-    mode = "normal"
-    name_model= str(IMG_H)+"_rgb_"+mode
-    print("start: ", name_model)
     """ Set Hyperparameters """
+    
+    mode = "normal"
     batch_size = 25
     num_epochs = 1300
+    name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
+    
     resume_trainning = False
     lr = 2e-3
+    
+    
+    print("start: ", name_model)
     
     # set dir of files
     train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
@@ -894,9 +896,10 @@ if __name__ == "__main__":
     
     logs_path = "mura_data/RGB/logs/"
     
+    logs_file = logs_path + "logs_" + name_model + ".csv"
     
-    path_gmodal = saved_model_path + name_model + "g_model" + str(num_epochs) + ".h5"
-    path_dmodal = saved_model_path +  name_model + "d_model" + str(num_epochs) + ".h5"
+    path_gmodal = saved_model_path + name_model + "_g_model" + ".h5"
+    path_dmodal = saved_model_path +  name_model + "_d_model" + ".h5"
     
     
     input_shape = (IMG_H, IMG_W, IMG_C)
@@ -923,7 +926,6 @@ if __name__ == "__main__":
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     
-    logs_file = logs_path + "logs_" + name_model + str(num_epochs) + ".csv"
     resunetgan.compile(g_optimizer, d_optimizer, logs_file)
     
 
@@ -935,7 +937,7 @@ if __name__ == "__main__":
     size_of_dataset = len(list(train_images_dataset)) * batch_size
     
     steps = int(size_of_dataset/batch_size)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, name_model, steps,resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
