@@ -880,11 +880,11 @@ if __name__ == "__main__":
     
     mode = "normal"
     batch_size = 25
-    num_epochs = 1300
+    num_epochs = 1600
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
     
     resume_trainning = False
-    lr = 2e-3
+    lr = 2e-4
     
     
     print("start: ", name_model)
@@ -942,4 +942,3 @@ if __name__ == "__main__":
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
 #     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal)
-
