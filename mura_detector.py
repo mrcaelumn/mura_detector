@@ -452,7 +452,8 @@ def build_generator_resnet50_unet(input_shape):
     d4 = decoder_block(d3, s1, x)                      ## (256 x 256)
     
     """ Output """
-    outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="sigmoid")(d4)
+#     outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="sigmoid")(d4)
+    outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="tanh")(d4)
 #     outputs = tf.keras.layers.Conv2D(3, 1, padding="same")(d5)
 
     model = tf.keras.models.Model(inputs, outputs)
@@ -477,7 +478,8 @@ def build_discriminator(inputs):
     feature = x
     
     x = tf.keras.layers.Flatten()(x)
-    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+#     output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+    output = tf.keras.layers.Dense(1, activation="tanh")(x)
 #     output = tf.keras.layers.Dense(1)(x)
     
     
@@ -844,7 +846,7 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, st
         saver_callback,
 #         checkpoints_callback,
         tensorboard_callback,
-        lr_callback,
+#         lr_callback,
     ]
     return callbacks
 
