@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tf_clahe
 import os
+import cv2
 print(tf.__version__)
 
 
@@ -104,16 +105,15 @@ def bcet_processing(img,channels=3):
 
 
 
-def convert_file(inputFile, outputFile):
+def convert_file_bcet(inputFile, outputFile):
 
     img = tf.io.read_file(inputFile)
     img = tf.io.decode_bmp(img, channels=3)
     # print(tf.rank(img))
     img = tf.cast(img, tf.float32)
 
-    # img = tf_clahe.clahe(img)
     
-    img = bcet_processing(img)
+#     img = bcet_processing(img)
     
     tf.keras.utils.save_img(outputFile, img)
 #     plt.figure()
@@ -123,25 +123,38 @@ def convert_file(inputFile, outputFile):
 #     plt.savefig(outputFile, format="jpg")   # save the figure to file
 #     plt.close() 
 
+def convert_file_clahe(inputFile, outputFile):
+    bgr = cv2.imread(inputFile)
+
+    lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
+
+    lab_planes = cv2.split(lab)
+
+    clahe = cv2.createCLAHE(clipLimit=2.0,tileGridSize=(8,9))
+
+    lab_planes[0] = clahe.apply(lab_planes[0])
+
+    lab = cv2.merge(lab_planes)
+
+    bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    cv2.imwrite(outputFile, bgr)
+
 
 # In[ ]:
 
 
 ## convert colour of images
 
-# projects/mura_detector/Series Defect Upload_20210809/BUTTERFLY
-# projects/mura_detector/BCET_Photo/serious defect/butterfly
-
-
 Input_dir = 'prod_data/RGB/train_data/normal/'
-Out_dir = 'prod_data/RGB/train_data/bcet_normal/'
+Out_dir = 'prod_data/RGB/train_data/clahe_normal/'
 a = os.listdir(Input_dir)
 for i in a:
     if i != ".DS_Store":
         print(i)
         inputFile = Input_dir+i
         OutputFile = Out_dir+i
-        convert_file(inputFile, OutputFile)
+#         convert_file_bcet(inputFile, OutputFile)
+        convert_file_clahe(inputFile, OutputFile)
     
 #     break
 
