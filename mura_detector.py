@@ -6,10 +6,10 @@
 
 # importing Neccessary Library and constant variable
 
-# get_ipython().system('pip install tf_clahe')
-# get_ipython().system('pip install -U scikit-learn')
-# get_ipython().system('pip install matplotlib')
-# get_ipython().system('pip install pandas')
+# !pip install tf_clahe
+# !pip install -U scikit-learn
+# !pip install matplotlib
+# !pip install pandas
 
 
 # In[ ]:
@@ -329,6 +329,7 @@ def plot_roc_curve(fpr, tpr, name_model):
     plt.legend()
     plt.savefig(name_model+'_roc_curve.png')
     plt.show()
+    plt.clf()
     
 
 
@@ -385,20 +386,8 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.savefig(title+'_cm.png')
-
-
-# In[ ]:
-
-
-def plot_epoch_result(epochs, loss, name, model_name):
-    plt.plot(epochs, loss, 'g', label=name)
-#     plt.plot(epochs, disc_loss, 'b', label='Discriminator loss')
-    plt.title(name)
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig(model_name+ '_'+name+'_epoch_result.png')
     plt.show()
+    plt.clf()
 
 
 # In[ ]:
@@ -756,6 +745,7 @@ class ResUnetGAN(tf.keras.models.Model):
             fig.tight_layout()    
             fig.savefig(mode+'_'+i+'.png')
             plt.show()
+            plt.clf()
 
 
 # In[ ]:
@@ -786,8 +776,8 @@ class CustomSaver(tf.keras.callbacks.Callback):
     def on_train_end(self, logs=None):
         self.model.saved_model(self.g_model_path, self.d_model_path)
         
-        self.plot_epoch_result(self.epochs_list, self.gen_loss_list, "Generator_Loss", self.name_model)
-        self.plot_epoch_result(self.epochs_list, self.disc_loss_list, "Discriminator_Loss", self.name_model)
+        self.plot_epoch_result(self.epochs_list, self.gen_loss_list, "Generator_Loss", self.name_model, "g")
+        self.plot_epoch_result(self.epochs_list, self.disc_loss_list, "Discriminator_Loss", self.name_model, "r")
     
     def on_epoch_end(self, epoch, logs={}):
         logs = logs or {}
@@ -807,8 +797,8 @@ class CustomSaver(tf.keras.callbacks.Callback):
             self.model.saved_model(self.g_model_path, self.d_model_path)
             print('saved for epoch',epoch + 1)
             
-    def plot_epoch_result(self, epochs, loss, name, model_name):
-        plt.plot(epochs, loss, 'g', label=name)
+    def plot_epoch_result(self, epochs, loss, name, model_name, colour):
+        plt.plot(epochs, loss, colour, label=name)
     #     plt.plot(epochs, disc_loss, 'b', label='Discriminator loss')
         plt.title(name)
         plt.xlabel('Epochs')
@@ -816,6 +806,7 @@ class CustomSaver(tf.keras.callbacks.Callback):
         plt.legend()
         plt.savefig(model_name+ '_'+name+'_epoch_result.png')
         plt.show()
+        plt.clf()
 
         
 def scheduler(epoch, lr):
@@ -889,7 +880,7 @@ if __name__ == "__main__":
     
     mode = "normal"
     batch_size = 25
-    num_epochs = 1600
+    num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
     
     resume_trainning = False
