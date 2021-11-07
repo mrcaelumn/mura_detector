@@ -32,6 +32,7 @@ from csv import DictWriter
 from sklearn.metrics import roc_curve, auc, precision_score, recall_score, f1_score
 
 from matplotlib import pyplot as plt
+import matplotlib.patches as mpatches
 
 IMG_H = 128
 IMG_W = 128
@@ -42,6 +43,7 @@ assert version.parse(tf.__version__).release[0] >= 2,     "This notebook require
 
 # Weight initializers for the Generator network
 WEIGHT_INIT = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.2)
+AUTOTUNE = tf.data.AUTOTUNE
 
 
 # In[ ]:
@@ -196,11 +198,7 @@ def prep_stage(x):
     return x
 
 def augment_dataset_batch_train(dataset_batch):
-    AUTOTUNE = tf.data.AUTOTUNE
-    
-   
-#     dataset_batch = dataset_batch.map(lambda x: (tf.image.per_image_standardization(x)))
-        
+
     flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
               num_parallel_calls=AUTOTUNE)
     
@@ -271,7 +269,6 @@ def load_image_with_label(image_path, label):
 
 def tf_dataset(images_path, batch_size, labels=False, class_names=None):
   
-
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
     dataset = dataset.shuffle(buffer_size=10240)
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -348,6 +345,22 @@ def roc(labels, scores, name_model):
     plot_roc_curve(fpr, tpr, name_model)
     
     return roc_auc, optimal_threshold
+
+def plot_loss_with_rlabel(loss_value, real_label, name_model, prefix):
+    # 'bo-' means blue color, round points, solid lines
+    colours = ["blue" if x == 1.0 else "red" for x in real_label]
+    plt.scatter(list(range(0, len(real_label))), loss_value, label='loss_value',c = colours)
+#     plt.rcParams["figure.figsize"] = (50,3)
+    # Set a title of the current axes.
+    plt.title(prefix + "_" + name_model)
+    # show a legend on the plot
+    red_patch = mpatches.Patch(color='red', label='Normal Display')
+    blue_patch = mpatches.Patch(color='blue', label='Defect Display')
+    plt.legend(handles=[red_patch, blue_patch])
+    # Display a figure.
+    plt.savefig(prefix + "_" + name_model+'_rec_feat_rlabel.png')
+    plt.show()
+    plt.clf()
 
 
 # In[ ]:
@@ -455,10 +468,10 @@ def build_generator_resnet50_unet(input_shape):
 
 # create discriminator model
 def build_discriminator(inputs):
-    f = [2**i for i in range(4)]
+    f = [2**i for i in range(2)]
     x = inputs
-    for i in range(0, 4):
-        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (5, 5), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(inputs)
+    for i in range(0, 2):
+        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (5, 5), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
         x = tf.keras.layers.Dropout(0.3)(x)
@@ -467,7 +480,7 @@ def build_discriminator(inputs):
     feature = x
     
     x = tf.keras.layers.Flatten()(x)
-    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+    output = tf.keras.layers.Dense(1, activation="tanh")(x)
 #     output = tf.keras.layers.Dense(1, activation="tanh")(x)
 #     output = tf.keras.layers.Dense(1)(x)
     
@@ -618,6 +631,8 @@ class ResUnetGAN(tf.keras.models.Model):
         
         scores_ano = []
         real_label = []
+        rec_loss_list = []
+        feat_loss_list = []
         i = 0
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
@@ -642,23 +657,29 @@ class ResUnetGAN(tf.keras.models.Model):
             
             score = (anomaly_weight * loss_rec) + ((1-anomaly_weight) * loss_feat)
 #             print(score, loss_rec, loss_feat)
-            print(i, score.numpy(),labels.numpy()[0] )
+#             print(i, score.numpy(),labels.numpy()[0] )
 #          
             scores_ano = np.append(scores_ano, score.numpy())
             real_label = np.append(real_label, labels.numpy()[0])
-            
+        
+            rec_loss_list = np.append(rec_loss_list, loss_rec)
+            feat_loss_list = np.append(feat_loss_list, loss_feat)
+        
+#             print("reconstruction loss: ", loss_rec.numpy(), "feature losss: ", loss_feat.numpy(), "label: ", labels.numpy(), "score: ", score.numpy())
         
         
         ''' Scale scores vector between [0, 1]'''
         scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
-
-        print("scores_ano: ", scores_ano)
-        print("real_label: ", real_label)
+        plot_loss_with_rlabel(scores_ano, real_label, name_model, "Anomaly Score")
+#         print("scores_ano: ", scores_ano)
+#         print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
         auc_out, threshold = roc(real_label, scores_ano, name_model)
         print("auc: ", auc_out)
         print("threshold: ", threshold)
-
+        
+        
+        
         scores_ano = (scores_ano > threshold).astype(int)
         cm = tf.math.confusion_matrix(labels=real_label, predictions=scores_ano).numpy()
         TP = cm[1][1]
@@ -667,7 +688,8 @@ class ResUnetGAN(tf.keras.models.Model):
         TN = cm[0][0]
         plot_confusion_matrix(cm, class_names, title=name_model)
 
-
+        plot_loss_with_rlabel(rec_loss_list, real_label, name_model, "RECONSTRUCTION Loss")
+        
         diagonal_sum = cm.trace()
         sum_of_all_elements = cm.sum()
 
@@ -680,18 +702,19 @@ class ResUnetGAN(tf.keras.models.Model):
 #         F1 = 2 * (precision * recall) / (precision + recall)
         print("F1-Score: ", f1_score(real_label, scores_ano))
     
+    
         
-    def checking_gen_disc(self, mode, g_filepath, d_filepath):
+    def checking_gen_disc(self, mode, g_filepath, d_filepath, test_data_path):
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
 #         path = "mura_data/RGB/test_data/normal/normal.bmp"
 #         path = "mura_data/RGB/test_data/defect/defect.bmp"
 #         path = "rgb_serius_defect/BUTTERFLY (2).bmp"
         paths = {
-            "normal": "mura_data/RGB/test_data/normal/normal.bmp",
-            "defect": "mura_data/RGB/test_data/defect/defect.bmp",
-            "butterfly_defect": "rgb_serius_defect/BUTTERFLY (2).bmp",
-            "water_defect": "rgb_serius_defect/0428-12 P20.bmp"
+            "normal": test_data_path+"/normal/normal.bmp",
+            "defect": test_data_path+"/defect/defect.bmp",
+            "butterfly_defect": test_data_path+"/defect/BUTTERFLY (2).bmp",
+            "water_defect": test_data_path+"/defect/0428-12 P20.bmp"
         }
    
         for i, v in paths.items():
@@ -878,8 +901,8 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "normal"
-    batch_size = 25
+    mode = "clahe"
+    batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
     
@@ -891,7 +914,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
-    test_data_path = "mura_data/RGB/test_data"
+    test_data_path = "mura_data/RGB/clahe_test_data"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -901,7 +924,16 @@ if __name__ == "__main__":
     path_gmodal = saved_model_path + name_model + "_g_model" + ".h5"
     path_dmodal = saved_model_path +  name_model + "_d_model" + ".h5"
     
+    """
+    Create a MirroredStrategy object. 
+    This will handle distribution and provide a context manager (MirroredStrategy.scope) 
+    to build your model inside.
+    """
     
+    strategy = tf.distribute.MirroredStrategy()
+    
+    print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
     input_shape = (IMG_H, IMG_W, IMG_C)
     # print(input_shape)
 
@@ -934,6 +966,7 @@ if __name__ == "__main__":
     """ run trainning process """
     train_images = glob(train_images_path)
     train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     size_of_dataset = len(list(train_images_dataset)) * batch_size
     
     steps = int(size_of_dataset/batch_size)
@@ -941,5 +974,11 @@ if __name__ == "__main__":
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
-#     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal)
+#     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+
+
+# In[ ]:
+
+
+
 
