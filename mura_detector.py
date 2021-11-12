@@ -17,9 +17,12 @@
 
 import itertools
 import tensorflow as tf
+import tensorflow_addons as tfa
+import tf_clahe
+
 import numpy as np
 import pandas as pd 
-import tf_clahe
+
 from glob import glob
 from tqdm import tqdm
 from packaging import version
@@ -34,8 +37,8 @@ from sklearn.metrics import roc_curve, auc, precision_score, recall_score, f1_sc
 from matplotlib import pyplot as plt
 import matplotlib.patches as mpatches
 
-IMG_H = 128
-IMG_W = 128
+IMG_H = 224
+IMG_W = 224
 IMG_C = 3  ## Change this to 1 for grayscale.
 
 print("TensorFlow version: ", tf.__version__)
@@ -187,13 +190,16 @@ def bcet_processing(img,channels=3):
 # function for  preprocessing data 
 def prep_stage(x):
     ### implement clahe to images
-#     x = tf_clahe.clahe(x)
+    # x = tf_clahe.clahe(x)
     
     ### implement BCET to iamges
-#     x = bcet_processing(x)
+    # x = bcet_processing(x)
     
+    ### implement Histogram normalization to iamges
+    x = tfa.image.equalize(x)
+
     ### crop or pad images
-#     x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
+    # x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
     x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
 
@@ -468,9 +474,9 @@ def build_generator_resnet50_unet(input_shape):
 
 # create discriminator model
 def build_discriminator(inputs):
-    f = [2**i for i in range(2)]
+    f = [2**i for i in range(4)]
     x = inputs
-    for i in range(0, 2):
+    for i in range(0, 4):
         x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (5, 5), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
@@ -896,8 +902,6 @@ if __name__ == "__main__":
     Datasets: For trainning dataset, it'll have additional datasets (flip-up-down and flip-right-left)
     '''
     
-    
-    
     # run the function here
     """ Set Hyperparameters """
     
@@ -908,7 +912,6 @@ if __name__ == "__main__":
     
     resume_trainning = False
     lr = 2e-4
-    
     
     print("start: ", name_model)
     
@@ -936,7 +939,6 @@ if __name__ == "__main__":
 
     input_shape = (IMG_H, IMG_W, IMG_C)
     # print(input_shape)
-
     
     ## init models ##
     
@@ -947,20 +949,15 @@ if __name__ == "__main__":
     
     d_model = build_discriminator(inputs)
     
-    
-
 #     d_model.summary()
 #     g_model.summary()
     
     resunetgan = ResUnetGAN(g_model, d_model)
     
-
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
-    
-
     
 #     print(train_images_dataset)
     """ run trainning process """
