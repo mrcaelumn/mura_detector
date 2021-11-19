@@ -37,8 +37,8 @@ from sklearn.metrics import roc_curve, auc, precision_score, recall_score, f1_sc
 from matplotlib import pyplot as plt
 import matplotlib.patches as mpatches
 
-IMG_H = 224
-IMG_W = 224
+IMG_H = 128
+IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
 print("TensorFlow version: ", tf.__version__)
@@ -474,9 +474,9 @@ def build_generator_resnet50_unet(input_shape):
 
 # create discriminator model
 def build_discriminator(inputs):
-    f = [2**i for i in range(4)]
+    f = [2**i for i in range(2)]
     x = inputs
-    for i in range(0, 4):
+    for i in range(0, 2):
         x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (5, 5), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
@@ -856,6 +856,9 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, st
     
     lr_callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     
+    reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='disc_loss', factor=0.2,
+                              patience=7, min_lr=0.000001)
+    
     tensorboard_callback = tf.keras.callbacks.TensorBoard(
         log_dir=logs_path + name_model + "/" + datetime.now().strftime("%Y%m%d-%H%M%S"), 
         histogram_freq=1
@@ -867,6 +870,7 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, st
 #         checkpoints_callback,
         tensorboard_callback,
 #         lr_callback,
+        reduce_lr,
     ]
     return callbacks
 
@@ -961,13 +965,13 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-    train_images = glob(train_images_path)
-    train_images_dataset = load_image_train(train_images, batch_size)
-    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    size_of_dataset = len(list(train_images_dataset)) * batch_size
+#     train_images = glob(train_images_path)
+#     train_images_dataset = load_image_train(train_images, batch_size)
+#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+#     size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-    steps = int(size_of_dataset/batch_size)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+#     steps = int(size_of_dataset/batch_size)
+#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
