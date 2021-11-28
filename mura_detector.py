@@ -195,8 +195,15 @@ def prep_stage(x):
     ### implement BCET to iamges
     # x = bcet_processing(x)
     
+    ### custom 
+    x = tf.cast(x, tf.float32) / 255.0
+    x = tf.image.adjust_contrast(x, 9.)
+    x = tf.image.adjust_hue(x, 9.)
+    x = tf.image.adjust_gamma(x)
+    x = tfa.image.median_filter2d(x)
+    x = tf.cast(x * 255.0, tf.uint8)
     ### implement Histogram normalization to iamges
-    x = tfa.image.equalize(x)
+    # x = tfa.image.equalize(x)
 
     ### crop or pad images
     # x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
@@ -633,7 +640,7 @@ class ResUnetGAN(tf.keras.models.Model):
         # print(test_dateset)
         
         # range between 0-1
-        anomaly_weight = 0.1
+        anomaly_weight = 0.8
         
         scores_ano = []
         real_label = []
@@ -976,10 +983,4 @@ if __name__ == "__main__":
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
 #     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
-
-
-# In[ ]:
-
-
-
 
