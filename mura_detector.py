@@ -196,12 +196,12 @@ def prep_stage(x):
     # x = bcet_processing(x)
     
     ### custom 
-    x = tf.cast(x, tf.float32) / 255.0
+    # x = tf.cast(x, tf.float32) / 255.0
     x = tf.image.adjust_contrast(x, 9.)
     x = tf.image.adjust_hue(x, 9.)
     x = tf.image.adjust_gamma(x)
     x = tfa.image.median_filter2d(x)
-    x = tf.cast(x * 255.0, tf.uint8)
+    # x = tf.cast(x * 255.0, tf.uint8)
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
 
@@ -371,7 +371,7 @@ def plot_loss_with_rlabel(loss_value, real_label, name_model, prefix):
     blue_patch = mpatches.Patch(color='blue', label='Defect Display')
     plt.legend(handles=[red_patch, blue_patch])
     # Display a figure.
-    plt.savefig(prefix + "_" + name_model+'_rec_feat_rlabel.png')
+    plt.savefig(name_model + "_" + prefix +'_rec_feat_rlabel.png')
     plt.show()
     plt.clf()
 
@@ -683,7 +683,7 @@ class ResUnetGAN(tf.keras.models.Model):
         
         ''' Scale scores vector between [0, 1]'''
         scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
-        plot_loss_with_rlabel(scores_ano, real_label, name_model, "Anomaly Score")
+        plot_loss_with_rlabel(scores_ano, real_label, name_model, "anomaly_score")
 #         print("scores_ano: ", scores_ano)
 #         print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
@@ -701,7 +701,7 @@ class ResUnetGAN(tf.keras.models.Model):
         TN = cm[0][0]
         plot_confusion_matrix(cm, class_names, title=name_model)
 
-        plot_loss_with_rlabel(rec_loss_list, real_label, name_model, "RECONSTRUCTION Loss")
+        plot_loss_with_rlabel(rec_loss_list, real_label, name_model, "recontruction_loss")
         
         diagonal_sum = cm.trace()
         sum_of_all_elements = cm.sum()
@@ -733,8 +733,8 @@ class ResUnetGAN(tf.keras.models.Model):
         for i, v in paths.items():
             print(i,v)
             
-            width=128
-            height=128
+            width=IMG_W
+            height=IMG_H
             rows = 1
             cols = 3
             axes=[]
@@ -922,12 +922,12 @@ if __name__ == "__main__":
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
     
     resume_trainning = False
-    lr = 2e-4
+    lr = 1e-4
     
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
+    train_images_path = "mura_data/RGB/new_train_data/normal/*.bmp"
     test_data_path = "mura_data/RGB/clahe_test_data"
     saved_model_path = "mura_data/RGB/saved_model/"
     
@@ -972,13 +972,13 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-#     train_images = glob(train_images_path)
-#     train_images_dataset = load_image_train(train_images, batch_size)
-#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-#     size_of_dataset = len(list(train_images_dataset)) * batch_size
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-#     steps = int(size_of_dataset/batch_size)
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+    steps = int(size_of_dataset/batch_size)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
