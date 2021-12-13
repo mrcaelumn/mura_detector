@@ -197,7 +197,6 @@ def prep_stage(x):
     # x = bcet_processing(x)
     
     ### custom 
-    # x = tf.cast(x, tf.float32) / 255.0
     x = tfio.experimental.color.rgb_to_bgr(x)
     x = tf.image.adjust_contrast(x, 11.)
     x = tf.image.adjust_hue(x, 11.)
@@ -421,60 +420,78 @@ def plot_confusion_matrix(cm, classes,
 # In[ ]:
 
 
-def conv_block(input, num_filters):
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(input)
+def bn_act(x, act=True):
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.LeakyReLU(0.2)(x)
-
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.LeakyReLU(0.2)(x)
-
+    if act == True:
+        # x = tf.keras.layers.Activation("relu")(x)
+        x = tf.keras.layers.LeakyReLU(0.2)(x)
     return x
 
-def decoder_block(input, skip_features, num_filters):
-    x = tf.keras.layers.Conv2DTranspose(num_filters, (3, 3), strides=2, padding="same")(input)
-    x = tf.keras.layers.Concatenate()([x, skip_features])
-    x = conv_block(x, num_filters)
-    return x
+def conv_block(x, filters, kernel_size=(3, 3), padding="same", strides=1):
+    conv = bn_act(x)
+    conv = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides)(conv)
+    return conv
+
+def stem(x, filters, kernel_size=(3, 3), padding="same", strides=1):
+    conv = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides)(x)
+    conv = conv_block(conv, filters, kernel_size=kernel_size, padding=padding, strides=strides)
+    
+    shortcut = tf.keras.layers.Conv2D(filters, kernel_size=(1, 1), padding=padding, strides=strides)(x)
+    shortcut = bn_act(shortcut, act=False)
+    
+    output = tf.keras.layers.Add()([conv, shortcut])
+    return output
+
+def residual_block(x, filters, kernel_size=(3, 3), padding="same", strides=1):
+    res = conv_block(x, filters, kernel_size=kernel_size, padding=padding, strides=strides)
+    res = conv_block(res, filters, kernel_size=kernel_size, padding=padding, strides=1)
+    
+    shortcut = tf.keras.layers.Conv2D(filters, kernel_size=(1, 1), padding=padding, strides=strides)(x)
+    shortcut = bn_act(shortcut, act=False)
+    
+    output = tf.keras.layers.Add()([shortcut, res])
+    return output
+
+def upsample_concat_block(x, xskip):
+    u = tf.keras.layers.UpSampling2D((2, 2))(x)
+    c = tf.keras.layers.Concatenate()([u, xskip])
+    return c
 
 
 # In[ ]:
 
 
 # create generator model based on resnet50 and unet network
-def build_generator_resnet50_unet(input_shape):
-    # print(inputs)
-    # print("pretained start")
-    """ Pre-trained ResNet50 Model """
-    resnet50 = tf.keras.applications.ResNet50(include_top=False, weights="imagenet", input_tensor=input_shape)
-
-    """ Encoder """
-    s1 = resnet50.get_layer("input_1").output           ## (256 x 256)
-    s2 = resnet50.get_layer("conv1_relu").output        ## (128 x 128)
-    s3 = resnet50.get_layer("conv2_block3_out").output  ## (64 x 64)
-    s4 = resnet50.get_layer("conv3_block4_out").output  ## (32 x 32)
-
-    """ Bridge """
-    b1 = resnet50.get_layer("conv4_block6_out").output  ## (16 x 16)
-
-    """ Decoder """
-    x = IMG_H
-    d1 = decoder_block(b1, s4, x)                     ## (32 x 32)
-    x = x/2
-    d2 = decoder_block(d1, s3, x)                     ## (64 x 64)
-    x = x/2
-    d3 = decoder_block(d2, s2, x)                     ## (128 x 128)
-    x = x/2
-    d4 = decoder_block(d3, s1, x)                      ## (256 x 256)
+def build_generator_resnet18_unet(input_shape):
+    f = [16, 32, 64, 128, 256]
     
-    """ Output """
-#     outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="sigmoid")(d4)
-    outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="tanh")(d4)
-#     outputs = tf.keras.layers.Conv2D(3, 1, padding="same")(d5)
-
+    ## Encoder
+    e0 = input_shape
+    e1 = stem(e0, f[0])
+    e2 = residual_block(e1, f[1], strides=2)
+    e3 = residual_block(e2, f[2], strides=2)
+    e4 = residual_block(e3, f[3], strides=2)
+    e5 = residual_block(e4, f[4], strides=2)
+    
+    ## Bridge
+    b0 = conv_block(e5, f[4], strides=1)
+    b1 = conv_block(b0, f[4], strides=1)
+    
+    ## Decoder
+    u1 = upsample_concat_block(b1, e4)
+    d1 = residual_block(u1, f[4])
+    
+    u2 = upsample_concat_block(d1, e3)
+    d2 = residual_block(u2, f[3])
+    
+    u3 = upsample_concat_block(d2, e2)
+    d3 = residual_block(u3, f[2])
+    
+    u4 = upsample_concat_block(d3, e1)
+    d4 = residual_block(u4, f[1])
+    
+    outputs = tf.keras.layers.Conv2D(3, (1, 1), padding="same", activation="tanh")(d4)
     model = tf.keras.models.Model(inputs, outputs)
-
     return model
 
 
@@ -929,7 +946,7 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = "mura_data/RGB/new_train_data/normal/*.bmp"
+    train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
     test_data_path = "mura_data/RGB/clahe_test_data"
     saved_model_path = "mura_data/RGB/saved_model/"
     
@@ -958,7 +975,7 @@ if __name__ == "__main__":
     # set input 
     inputs = tf.keras.layers.Input(input_shape, name="input_1")
     
-    g_model = build_generator_resnet50_unet(inputs)
+    g_model = build_generator_resnet18_unet(inputs)
     
     d_model = build_discriminator(inputs)
     
@@ -974,13 +991,13 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-#     train_images = glob(train_images_path)
-#     train_images_dataset = load_image_train(train_images, batch_size)
-#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-#     size_of_dataset = len(list(train_images_dataset)) * batch_size
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-#     steps = int(size_of_dataset/batch_size)
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+    steps = int(size_of_dataset/batch_size)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
 #     """ run testing """
 #     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
