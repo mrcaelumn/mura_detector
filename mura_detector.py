@@ -19,6 +19,7 @@ import itertools
 import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow_io as tfio
+
 import tf_clahe
 
 import numpy as np
@@ -106,7 +107,7 @@ class AdversarialLoss(tf.keras.losses.Loss):
 # delcare all loss function that we will use
 
 # for adversarial loss
-# cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+# cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 cross_entropy = AdversarialLoss()
 # L1 Loss
 mae = tf.keras.losses.MeanAbsoluteError()
@@ -198,9 +199,10 @@ def prep_stage(x):
     
     ### custom 
     # x = tf.cast(x, tf.float32) / 255.0
+   
     x = tfio.experimental.color.rgb_to_bgr(x)
-    x = tf.image.adjust_contrast(x, 11.)
-    x = tf.image.adjust_hue(x, 11.)
+    x = tf.image.adjust_contrast(x, 10.)
+    x = tf.image.adjust_hue(x, 1.)
     x = tf.image.adjust_gamma(x)
     x = tfa.image.median_filter2d(x)
     # x = tf.cast(x * 255.0, tf.uint8)
@@ -278,6 +280,7 @@ def load_image_with_label(image_path, label):
     img = tf.cast(img, tf.float32)
     #     rescailing image from 0,255 to -1,1
     img = (img - 127.5) / 127.5
+    # img /= 255.0
     
     return img, label
 
@@ -361,10 +364,10 @@ def roc(labels, scores, name_model):
     
     return roc_auc, optimal_threshold
 
-def plot_loss_with_rlabel(loss_value, real_label, name_model, prefix):
+def plot_loss_with_rlabel(x_value, y_value, real_label, name_model, prefix, label_axis=["x_label", "y_label"]):
     # 'bo-' means blue color, round points, solid lines
     colours = ["blue" if x == 1.0 else "red" for x in real_label]
-    plt.scatter(list(range(0, len(real_label))), loss_value, label='loss_value',c = colours)
+    plt.scatter(x_value, y_value, label='loss_value',c = colours)
 #     plt.rcParams["figure.figsize"] = (50,3)
     # Set a title of the current axes.
     plt.title(prefix + "_" + name_model)
@@ -373,6 +376,8 @@ def plot_loss_with_rlabel(loss_value, real_label, name_model, prefix):
     blue_patch = mpatches.Patch(color='blue', label='Defect Display')
     plt.legend(handles=[red_patch, blue_patch])
     # Display a figure.
+    plt.ylabel(label_axis[0])
+    plt.xlabel(label_axis[1])
     plt.savefig(name_model + "_" + prefix +'_rec_feat_rlabel.png')
     plt.show()
     plt.clf()
@@ -642,12 +647,13 @@ class ResUnetGAN(tf.keras.models.Model):
         # print(test_dateset)
         
         # range between 0-1
-        anomaly_weight = 0.8
+        anomaly_weight = 0.1
         
         scores_ano = []
         real_label = []
         rec_loss_list = []
         feat_loss_list = []
+        ssim_loss_list = []
         i = 0
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
@@ -666,26 +672,29 @@ class ResUnetGAN(tf.keras.models.Model):
             loss_rec = tf.reduce_mean(mae(images, reconstructed_images))
         
         
-#         loss_feat = tf.reduce_mean( tf.keras.losses.mse(real, fake) )
+            # loss_feat = tf.reduce_mean( tf.keras.losses.mse(real, fake) )
             loss_feat = feat(feature_real, feature_fake)
 
+            # Loss 3: SSIM Loss
+            loss_ssim =  ssim(images, reconstructed_images)
             
             score = (anomaly_weight * loss_rec) + ((1-anomaly_weight) * loss_feat)
-#             print(score, loss_rec, loss_feat)
-#             print(i, score.numpy(),labels.numpy()[0] )
+
 #          
             scores_ano = np.append(scores_ano, score.numpy())
             real_label = np.append(real_label, labels.numpy()[0])
         
             rec_loss_list = np.append(rec_loss_list, loss_rec)
             feat_loss_list = np.append(feat_loss_list, loss_feat)
+            ssim_loss_list = np.append(ssim_loss_list, loss_ssim)
         
 #             print("reconstruction loss: ", loss_rec.numpy(), "feature losss: ", loss_feat.numpy(), "label: ", labels.numpy(), "score: ", score.numpy())
         
         
         ''' Scale scores vector between [0, 1]'''
         scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
-        plot_loss_with_rlabel(scores_ano, real_label, name_model, "anomaly_score")
+        label_axis = ["feat_loss", "scores_anomaly"]
+        plot_loss_with_rlabel(feat_loss_list, scores_ano, real_label, name_model, "feat_loss_x_scores_anomaly", label_axis)
 #         print("scores_ano: ", scores_ano)
 #         print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
@@ -703,7 +712,8 @@ class ResUnetGAN(tf.keras.models.Model):
         TN = cm[0][0]
         plot_confusion_matrix(cm, class_names, title=name_model)
 
-        plot_loss_with_rlabel(rec_loss_list, real_label, name_model, "recontruction_loss")
+        label_axis = ["ssim_loss", "scores_anomaly"]
+        plot_loss_with_rlabel(ssim_loss_list, scores_ano, real_label, name_model, "ssim_loss_x_scores_anomaly", label_axis)
         
         diagonal_sum = cm.trace()
         sum_of_all_elements = cm.sum()
@@ -918,7 +928,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "custom"
+    mode = "custom-v3"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -983,6 +993,6 @@ if __name__ == "__main__":
 #     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
 #     """ run testing """
-#     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
+    resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
     resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
 
