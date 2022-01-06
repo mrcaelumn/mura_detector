@@ -53,6 +53,26 @@ AUTOTUNE = tf.data.AUTOTUNE
 # In[ ]:
 
 
+class GCAdam(tf.keras.optimizers.Adam):
+    def get_gradients(self, loss, params):
+        # We here just provide a modified get_gradients() function since we are
+        # trying to just compute the centralized gradients.
+
+        grads = []
+        gradients = super().get_gradients()
+        for grad in gradients:
+            grad_len = len(grad.shape)
+            if grad_len > 1:
+                axis = list(range(grad_len - 1))
+                grad -= tf.reduce_mean(grad, axis=axis, keep_dims=True)
+            grads.append(grad)
+
+        return grads
+
+
+# In[ ]:
+
+
 # class for SSIM loss function
 class SSIMLoss(tf.keras.losses.Loss):
     def __init__(self,
@@ -199,7 +219,7 @@ def prep_stage(x):
     ### custom 
     x = tfio.experimental.color.rgb_to_bgr(x)
     x = tf.image.adjust_contrast(x, 11.)
-    x = tf.image.adjust_hue(x, 11.)
+    x = tf.image.adjust_hue(x, 1.)
     x = tf.image.adjust_gamma(x)
     x = tfa.image.median_filter2d(x)
     # x = tf.cast(x * 255.0, tf.uint8)
@@ -360,10 +380,10 @@ def roc(labels, scores, name_model):
     
     return roc_auc, optimal_threshold
 
-def plot_loss_with_rlabel(loss_value, real_label, name_model, prefix):
+def plot_loss_with_rlabel(x_value, y_value, real_label, name_model, prefix, label_axis=["x_label", "y_label"]):
     # 'bo-' means blue color, round points, solid lines
     colours = ["blue" if x == 1.0 else "red" for x in real_label]
-    plt.scatter(list(range(0, len(real_label))), loss_value, label='loss_value',c = colours)
+    plt.scatter(x_value, y_value, label='loss_value',c = colours)
 #     plt.rcParams["figure.figsize"] = (50,3)
     # Set a title of the current axes.
     plt.title(prefix + "_" + name_model)
@@ -372,6 +392,8 @@ def plot_loss_with_rlabel(loss_value, real_label, name_model, prefix):
     blue_patch = mpatches.Patch(color='blue', label='Defect Display')
     plt.legend(handles=[red_patch, blue_patch])
     # Display a figure.
+    plt.xlabel(label_axis[0])
+    plt.ylabel(label_axis[1])
     plt.savefig(name_model + "_" + prefix +'_rec_feat_rlabel.png')
     plt.show()
     plt.clf()
@@ -463,7 +485,8 @@ def upsample_concat_block(x, xskip):
 
 # create generator model based on resnet50 and unet network
 def build_generator_resnet18_unet(input_shape):
-    f = [16, 32, 64, 128, 256]
+    # f = [16, 32, 64, 128, 256]
+    f = [32, 64, 128, 256, 512]
     
     ## Encoder
     e0 = input_shape
@@ -665,6 +688,7 @@ class ResUnetGAN(tf.keras.models.Model):
         real_label = []
         rec_loss_list = []
         feat_loss_list = []
+        ssim_loss_list = []
         i = 0
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
@@ -686,6 +710,8 @@ class ResUnetGAN(tf.keras.models.Model):
 #         loss_feat = tf.reduce_mean( tf.keras.losses.mse(real, fake) )
             loss_feat = feat(feature_real, feature_fake)
 
+            # Loss 3: SSIM Loss
+            loss_ssim =  ssim(images, reconstructed_images)
             
             score = (anomaly_weight * loss_rec) + ((1-anomaly_weight) * loss_feat)
 #             print(score, loss_rec, loss_feat)
@@ -696,13 +722,15 @@ class ResUnetGAN(tf.keras.models.Model):
         
             rec_loss_list = np.append(rec_loss_list, loss_rec)
             feat_loss_list = np.append(feat_loss_list, loss_feat)
+            ssim_loss_list = np.append(ssim_loss_list, loss_ssim)
         
 #             print("reconstruction loss: ", loss_rec.numpy(), "feature losss: ", loss_feat.numpy(), "label: ", labels.numpy(), "score: ", score.numpy())
         
         
         ''' Scale scores vector between [0, 1]'''
         scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
-        plot_loss_with_rlabel(scores_ano, real_label, name_model, "anomaly_score")
+        label_axis = ["recon_loss", "scores_anomaly"]
+        plot_loss_with_rlabel(rec_loss_list, scores_ano, real_label, name_model, "anomaly_score", label_axis)
 #         print("scores_ano: ", scores_ano)
 #         print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
@@ -719,8 +747,8 @@ class ResUnetGAN(tf.keras.models.Model):
         FN = cm[1][0]
         TN = cm[0][0]
         plot_confusion_matrix(cm, class_names, title=name_model)
-
-        plot_loss_with_rlabel(rec_loss_list, real_label, name_model, "recontruction_loss")
+        label_axis = ["ssim_loss", "recon_loss"]
+        plot_loss_with_rlabel(ssim_loss_list, rec_loss_list, real_label, name_model, "recontruction_loss", label_axis)
         
         diagonal_sum = cm.trace()
         sum_of_all_elements = cm.sum()
@@ -745,8 +773,8 @@ class ResUnetGAN(tf.keras.models.Model):
         paths = {
             "normal": test_data_path+"/normal/normal.bmp",
             "defect": test_data_path+"/defect/defect.bmp",
-            "butterfly_defect": test_data_path+"/defect/BUTTERFLY (2).bmp",
-            "water_defect": test_data_path+"/defect/0428-12 P20.bmp"
+            # "butterfly_defect": test_data_path+"/defect/BUTTERFLY (2).bmp",
+            # "water_defect": test_data_path+"/defect/0428-12 P20.bmp"
         }
    
         for i, v in paths.items():
@@ -935,7 +963,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "custom"
+    mode = "custom-v4"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -947,7 +975,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
-    test_data_path = "mura_data/RGB/clahe_test_data"
+    test_data_path = "mura_data/RGB/clahe_test_data_v2"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -991,15 +1019,21 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-    train_images = glob(train_images_path)
-    train_images_dataset = load_image_train(train_images, batch_size)
-    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    size_of_dataset = len(list(train_images_dataset)) * batch_size
+#     train_images = glob(train_images_path)
+#     train_images_dataset = load_image_train(train_images, batch_size)
+#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+#     size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-    steps = int(size_of_dataset/batch_size)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+#     steps = int(size_of_dataset/batch_size)
+#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
 #     """ run testing """
-#     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
-    resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+    resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
+    # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+
+
+# In[ ]:
+
+
+
 

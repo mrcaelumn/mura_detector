@@ -376,8 +376,9 @@ def plot_loss_with_rlabel(x_value, y_value, real_label, name_model, prefix, labe
     blue_patch = mpatches.Patch(color='blue', label='Defect Display')
     plt.legend(handles=[red_patch, blue_patch])
     # Display a figure.
-    plt.ylabel(label_axis[0])
-    plt.xlabel(label_axis[1])
+    plt.xlabel(label_axis[0])
+    plt.ylabel(label_axis[1])
+    
     plt.savefig(name_model + "_" + prefix +'_rec_feat_rlabel.png')
     plt.show()
     plt.clf()
@@ -940,7 +941,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/new_train_data/normal/*.bmp"
-    test_data_path = "mura_data/RGB/clahe_test_data"
+    test_data_path = "mura_data/RGB/clahe_test_data_v2"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -994,5 +995,11 @@ if __name__ == "__main__":
     
 #     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
-    resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+    # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+
+
+# In[ ]:
+
+
+
 
