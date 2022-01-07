@@ -1012,8 +1012,8 @@ if __name__ == "__main__":
     
     resunetgan = ResUnetGAN(g_model, d_model)
     
-    g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
-    d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    g_optimizer = GCAdam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    d_optimizer = GCAdam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
