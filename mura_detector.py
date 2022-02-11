@@ -29,12 +29,14 @@ from glob import glob
 from tqdm import tqdm
 from packaging import version
 import os
+import random
 from packaging import version
 from datetime import datetime
 # Import writer class from csv module
 from csv import DictWriter
 
 from sklearn.metrics import roc_curve, auc, precision_score, recall_score, f1_score
+from sklearn.utils import shuffle
 
 from matplotlib import pyplot as plt
 import matplotlib.patches as mpatches
@@ -42,6 +44,8 @@ import matplotlib.patches as mpatches
 IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
+
+LIMIT_TEST_IMAGES = 200
 
 print("TensorFlow version: ", tf.__version__)
 assert version.parse(tf.__version__).release[0] >= 2,     "This notebook requires TensorFlow 2.0 or above."
@@ -200,11 +204,11 @@ def prep_stage(x):
     ### custom 
     # x = tf.cast(x, tf.float32) / 255.0
    
-    x = tfio.experimental.color.rgb_to_bgr(x)
-    x = tf.image.adjust_contrast(x, 10.)
-    x = tf.image.adjust_hue(x, 1.)
-    x = tf.image.adjust_gamma(x)
-    x = tfa.image.median_filter2d(x)
+    # x = tfio.experimental.color.rgb_to_bgr(x)
+    # x = tf.image.adjust_contrast(x, 10.)
+    # x = tf.image.adjust_hue(x, 1.)
+    # x = tf.image.adjust_gamma(x)
+    # x = tfa.image.median_filter2d(x)
     # x = tf.cast(x * 255.0, tf.uint8)
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
@@ -245,19 +249,29 @@ def augment_dataset_batch_test(dataset_batch):
 
 
 def read_data_with_labels(filepath, class_names):
+   
     image_list = []
     label_list = []
     for class_n in class_names:  # do dogs and cats
         path = os.path.join(filepath,class_n)  # create path to dogs and cats
         class_num = class_names.index(class_n)  # get the classification  (0 or a 1). 0=dog 1=cat
-
+        path_list = []
+        class_list = []
         for img in tqdm(os.listdir(path)):  
             if ".DS_Store" != img:
                 filpath = os.path.join(path,img)
 #                 print(filpath, class_num)
-                image_list.append(filpath)
-                label_list.append(class_num)
-#     print(image_list, label_list)
+                
+                path_list.append(filpath)
+                class_list.append(class_num)
+                # image_label_list.append({filpath:class_num})
+        
+        path_list, class_list = shuffle(path_list, class_list, random_state=random.randint(0, 10000))
+        image_list = image_list + path_list[:LIMIT_TEST_IMAGES]
+        label_list = label_list + class_list[:LIMIT_TEST_IMAGES]
+  
+    # print(image_list, label_list)
+    
     return image_list, label_list
 
 
@@ -648,7 +662,7 @@ class ResUnetGAN(tf.keras.models.Model):
         # print(test_dateset)
         
         # range between 0-1
-        anomaly_weight = 0.1
+        anomaly_weight = 0.8
         
         scores_ano = []
         real_label = []
@@ -672,7 +686,6 @@ class ResUnetGAN(tf.keras.models.Model):
             # Loss 2: RECONSTRUCTION loss (L1)
             loss_rec = tf.reduce_mean(mae(images, reconstructed_images))
         
-        
             # loss_feat = tf.reduce_mean( tf.keras.losses.mse(real, fake) )
             loss_feat = feat(feature_real, feature_fake)
 
@@ -680,7 +693,8 @@ class ResUnetGAN(tf.keras.models.Model):
             loss_ssim =  ssim(images, reconstructed_images)
             
             score = (anomaly_weight * loss_rec) + ((1-anomaly_weight) * loss_feat)
-
+#             print(score, loss_rec, loss_feat)
+#             print(i, score.numpy(),labels.numpy()[0] )
 #          
             scores_ano = np.append(scores_ano, score.numpy())
             real_label = np.append(real_label, labels.numpy()[0])
@@ -694,8 +708,8 @@ class ResUnetGAN(tf.keras.models.Model):
         
         ''' Scale scores vector between [0, 1]'''
         scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
-        label_axis = ["feat_loss", "scores_anomaly"]
-        plot_loss_with_rlabel(feat_loss_list, scores_ano, real_label, name_model, "feat_loss_x_scores_anomaly", label_axis)
+        label_axis = ["recon_loss", "scores_anomaly"]
+        plot_loss_with_rlabel(rec_loss_list, scores_ano, real_label, name_model, "anomaly_score", label_axis)
 #         print("scores_ano: ", scores_ano)
 #         print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
@@ -712,9 +726,8 @@ class ResUnetGAN(tf.keras.models.Model):
         FN = cm[1][0]
         TN = cm[0][0]
         plot_confusion_matrix(cm, class_names, title=name_model)
-
-        label_axis = ["ssim_loss", "scores_anomaly"]
-        plot_loss_with_rlabel(ssim_loss_list, scores_ano, real_label, name_model, "ssim_loss_x_scores_anomaly", label_axis)
+        label_axis = ["ssim_loss", "recon_loss"]
+        plot_loss_with_rlabel(ssim_loss_list, rec_loss_list, real_label, name_model, "recontruction_loss", label_axis)
         
         diagonal_sum = cm.trace()
         sum_of_all_elements = cm.sum()
@@ -727,6 +740,7 @@ class ResUnetGAN(tf.keras.models.Model):
         print("recall_score: ", TP/(TP+FN))
 #         F1 = 2 * (precision * recall) / (precision + recall)
         print("F1-Score: ", f1_score(real_label, scores_ano))
+    
     
     
         
@@ -929,7 +943,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "custom-v3"
+    mode = "normal-123"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -941,7 +955,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/new_train_data/normal/*.bmp"
-    test_data_path = "mura_data/RGB/clahe_test_data_v2"
+    test_data_path = "mura_data/RGB/test_data_all"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"

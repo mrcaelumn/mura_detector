@@ -42,6 +42,8 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
+LIMIT_TEST_IMAGES = 100
+
 print("TensorFlow version: ", tf.__version__)
 assert version.parse(tf.__version__).release[0] >= 2,     "This notebook requires TensorFlow 2.0 or above."
 
@@ -262,19 +264,29 @@ def augment_dataset_batch_test(dataset_batch):
 
 
 def read_data_with_labels(filepath, class_names):
+   
     image_list = []
     label_list = []
     for class_n in class_names:  # do dogs and cats
         path = os.path.join(filepath,class_n)  # create path to dogs and cats
         class_num = class_names.index(class_n)  # get the classification  (0 or a 1). 0=dog 1=cat
-
+        path_list = []
+        class_list = []
         for img in tqdm(os.listdir(path)):  
             if ".DS_Store" != img:
                 filpath = os.path.join(path,img)
 #                 print(filpath, class_num)
-                image_list.append(filpath)
-                label_list.append(class_num)
-#     print(image_list, label_list)
+                
+                path_list.append(filpath)
+                class_list.append(class_num)
+                # image_label_list.append({filpath:class_num})
+        
+        path_list, class_list = shuffle(path_list, class_list, random_state=0)
+        image_list = image_list + path_list[:LIMIT_TEST_IMAGES]
+        label_list = label_list + class_list[:LIMIT_TEST_IMAGES]
+  
+    # print(image_list, label_list)
+    
     return image_list, label_list
 
 
@@ -963,7 +975,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "custom-v4"
+    mode = "custom-123"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -975,7 +987,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/train_data/normal/*.bmp"
-    test_data_path = "mura_data/RGB/clahe_test_data_v2"
+    test_data_path = "mura_data/RGB/clahe_test_data_prob"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -1011,6 +1023,10 @@ if __name__ == "__main__":
 #     g_model.summary()
     
     resunetgan = ResUnetGAN(g_model, d_model)
+    
+    # g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    # d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    
     
     g_optimizer = GCAdam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = GCAdam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
