@@ -58,6 +58,21 @@ AUTOTUNE = tf.data.AUTOTUNE
 # In[ ]:
 
 
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    # Restrict TensorFlow to only use the first GPU
+    try:
+        tf.config.set_visible_devices(gpus[0], 'GPU')
+        logical_gpus = tf.config.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+    except RuntimeError as e:
+        # Visible devices must be set before GPUs have been initialized
+        print(e)
+
+
+# In[ ]:
+
+
 # class for SSIM loss function
 class SSIMLoss(tf.keras.losses.Loss):
     def __init__(self,
@@ -266,7 +281,7 @@ def read_data_with_labels(filepath, class_names):
                 class_list.append(class_num)
                 # image_label_list.append({filpath:class_num})
         
-        path_list, class_list = shuffle(path_list, class_list, random_state=random.randint(0, 10000))
+        path_list, class_list = shuffle(path_list, class_list, random_state=random.randint(123, 10000))
         image_list = image_list + path_list[:LIMIT_TEST_IMAGES]
         label_list = label_list + class_list[:LIMIT_TEST_IMAGES]
   
@@ -277,7 +292,7 @@ def read_data_with_labels(filepath, class_names):
 
 def load_image(image_path):
     img = tf.io.read_file(image_path)
-    img = tf.io.decode_bmp(img, channels=IMG_C)
+    img = tf.io.decode_png(img, channels=IMG_C)
     img = prep_stage(img)
     img = tf.cast(img, tf.float32)
 #     rescailing image from 0,255 to -1,1
@@ -289,7 +304,7 @@ def load_image_with_label(image_path, label):
     class_names = ["normal", "defect"]
 #     print(image_path)
     img = tf.io.read_file(image_path)
-    img = tf.io.decode_bmp(img, channels=IMG_C)
+    img = tf.io.decode_png(img, channels=IMG_C)
     img = prep_stage(img)
     img = tf.cast(img, tf.float32)
     #     rescailing image from 0,255 to -1,1
@@ -943,7 +958,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "normal-123"
+    mode = "normal-nctu-data"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -955,7 +970,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/new_train_data/normal/*.bmp"
-    test_data_path = "mura_data/RGB/test_data_all"
+    test_data_path = "mura_data/RGB/test_data_nctu"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -999,13 +1014,13 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-#     train_images = glob(train_images_path)
-#     train_images_dataset = load_image_train(train_images, batch_size)
-#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-#     size_of_dataset = len(list(train_images_dataset)) * batch_size
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-#     steps = int(size_of_dataset/batch_size)
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+    steps = int(size_of_dataset/batch_size)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
 #     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
