@@ -217,14 +217,14 @@ def prep_stage(x):
     # x = bcet_processing(x)
     
     ### custom 
-    # x = tf.cast(x, tf.float32) / 255.0
+#     x = tf.cast(x, tf.float32) / 255.0
    
-    # x = tfio.experimental.color.rgb_to_bgr(x)
-    # x = tf.image.adjust_contrast(x, 10.)
-    # x = tf.image.adjust_hue(x, 1.)
-    # x = tf.image.adjust_gamma(x)
-    # x = tfa.image.median_filter2d(x)
-    # x = tf.cast(x * 255.0, tf.uint8)
+#     x = tfio.experimental.color.rgb_to_bgr(x)
+#     x = tf.image.adjust_contrast(x, 10.)
+#     x = tf.image.adjust_hue(x, 1.)
+#     x = tf.image.adjust_gamma(x)
+#     x = tfa.image.median_filter2d(x)
+#     x = tf.cast(x * 255.0, tf.uint8)
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
 
@@ -301,7 +301,6 @@ def load_image(image_path):
     return img
 
 def load_image_with_label(image_path, label):
-    class_names = ["normal", "defect"]
 #     print(image_path)
     img = tf.io.read_file(image_path)
     img = tf.io.decode_png(img, channels=IMG_C)
@@ -328,10 +327,9 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
 def tf_dataset_labels(images_path, batch_size, class_names=None):
     
     filenames, labels = read_data_with_labels(images_path, class_names)
-#     print("testing")
-#     print(filenames, labels)
     dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
     dataset = dataset.shuffle(buffer_size=10240)
+    
     dataset = dataset.map(load_image_with_label, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
     dataset = dataset.batch(batch_size)
@@ -457,18 +455,18 @@ def plot_confusion_matrix(cm, classes,
 
 
 def conv_block(input, num_filters):
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(input)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(9,9), padding="same")(input)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(x)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(9,9), padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
     return x
 
 def decoder_block(input, skip_features, num_filters):
-    x = tf.keras.layers.Conv2DTranspose(num_filters, (3, 3), strides=2, padding="same")(input)
+    x = tf.keras.layers.Conv2DTranspose(num_filters, (9, 9), strides=2, padding="same")(input)
     x = tf.keras.layers.Concatenate()([x, skip_features])
     x = conv_block(x, num_filters)
     return x
@@ -521,7 +519,7 @@ def build_discriminator(inputs):
     f = [2**i for i in range(4)]
     x = inputs
     for i in range(0, 4):
-        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (3, 3), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
+        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (9, 9), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
         x = tf.keras.layers.Dropout(0.3)(x)
@@ -740,6 +738,10 @@ class ResUnetGAN(tf.keras.models.Model):
         FP = cm[0][1]
         FN = cm[1][0]
         TN = cm[0][0]
+        print(cm)
+        print(
+                "model saved. TP %d:, FP=%d, FN=%d, TN=%d" % (TP, FP, FN, TN)
+        )
         plot_confusion_matrix(cm, class_names, title=name_model)
         label_axis = ["ssim_loss", "recon_loss"]
         plot_loss_with_rlabel(ssim_loss_list, rec_loss_list, real_label, name_model, "recontruction_loss", label_axis)
@@ -748,11 +750,13 @@ class ResUnetGAN(tf.keras.models.Model):
         sum_of_all_elements = cm.sum()
 
         print("Accuracy: ", diagonal_sum / sum_of_all_elements )
-        print("False Alarm Rate: ", FP/(FP+TP))
-        print("Leakage Rate: ", FN/(FN+TN))
-        print("precision_score: ",precision_score(real_label, scores_ano))
-#         print("recall_score: ", recall_score(real_label, scores_ano))
-        print("recall_score: ", TP/(TP+FN))
+        print("False Alarm Rate (FPR): ", FP/(FP+TN))
+        print("Leakage Rat (FNR): ", FN/(FN+TP))
+        print("TNR: ", TN/(FP+TN))
+        print("precision_score: ", TP/(TP+FP))
+        print("recall_score (func): ", recall_score(real_label, scores_ano))
+        print("recall_score (manual): ", TP/(TP+FN))
+        print("NPV: ", TN/(FN+TN))
 #         F1 = 2 * (precision * recall) / (precision + recall)
         print("F1-Score: ", f1_score(real_label, scores_ano))
     
@@ -766,10 +770,8 @@ class ResUnetGAN(tf.keras.models.Model):
 #         path = "mura_data/RGB/test_data/defect/defect.bmp"
 #         path = "rgb_serius_defect/BUTTERFLY (2).bmp"
         paths = {
-            "normal": test_data_path+"/normal/normal.bmp",
-            "defect": test_data_path+"/defect/defect.bmp",
-            "butterfly_defect": test_data_path+"/defect/BUTTERFLY (2).bmp",
-            "water_defect": test_data_path+"/defect/0428-12 P20.bmp"
+            "normal": test_data_path+"/normal/normal.png",
+            "defect": test_data_path+"/defect/defect.png",
         }
    
         for i, v in paths.items():
@@ -784,7 +786,7 @@ class ResUnetGAN(tf.keras.models.Model):
             
             
             img = tf.io.read_file(v)
-            img = tf.io.decode_bmp(img, channels=IMG_C)
+            img = tf.io.decode_png(img, channels=IMG_C)
             
             name_subplot = mode+'_original_'+i
             axes.append( fig.add_subplot(rows, cols, 1) )
@@ -958,7 +960,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "normal-nctu-data"
+    mode = "clahe-nctu-data"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -969,8 +971,8 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = "mura_data/RGB/new_train_data/normal/*.bmp"
-    test_data_path = "mura_data/RGB/test_data_nctu"
+    train_images_path = "mura_data/RGB/new_train_data/normal/*.png"
+    test_data_path = "mura_data/RGB/clahe_test_data_nctu"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -1014,13 +1016,13 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-    train_images = glob(train_images_path)
-    train_images_dataset = load_image_train(train_images, batch_size)
-    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    size_of_dataset = len(list(train_images_dataset)) * batch_size
+#     train_images = glob(train_images_path)
+#     train_images_dataset = load_image_train(train_images, batch_size)
+#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+#     size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-    steps = int(size_of_dataset/batch_size)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+#     steps = int(size_of_dataset/batch_size)
+#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
 #     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
