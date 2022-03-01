@@ -217,14 +217,13 @@ def prep_stage(x):
     # x = bcet_processing(x)
     
     ### custom 
-#     x = tf.cast(x, tf.float32) / 255.0
-   
-#     x = tfio.experimental.color.rgb_to_bgr(x)
-#     x = tf.image.adjust_contrast(x, 10.)
-#     x = tf.image.adjust_hue(x, 1.)
-#     x = tf.image.adjust_gamma(x)
-#     x = tfa.image.median_filter2d(x)
-#     x = tf.cast(x * 255.0, tf.uint8)
+    x = tf.cast(x, tf.float32) / 255.0
+    x = tfio.experimental.color.rgb_to_bgr(x)
+    x = tf.image.adjust_contrast(x, 13.)
+    x = tf.image.adjust_hue(x, 13.)
+    x = tf.image.adjust_gamma(x)
+    x = tfa.image.median_filter2d(x)
+    x = tf.cast(x * 255.0, tf.uint8)
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
 
@@ -455,18 +454,18 @@ def plot_confusion_matrix(cm, classes,
 
 
 def conv_block(input, num_filters):
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(9,9), padding="same")(input)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(input)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(9,9), padding="same")(x)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
     return x
 
 def decoder_block(input, skip_features, num_filters):
-    x = tf.keras.layers.Conv2DTranspose(num_filters, (9, 9), strides=2, padding="same")(input)
+    x = tf.keras.layers.Conv2DTranspose(num_filters, (3, 3), strides=2, padding="same")(input)
     x = tf.keras.layers.Concatenate()([x, skip_features])
     x = conv_block(x, num_filters)
     return x
@@ -519,7 +518,7 @@ def build_discriminator(inputs):
     f = [2**i for i in range(4)]
     x = inputs
     for i in range(0, 4):
-        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (9, 9), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
+        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (3, 3), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
         x = tf.keras.layers.Dropout(0.3)(x)
@@ -960,7 +959,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "clahe-nctu-data"
+    mode = "normal-nctu-data"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -972,7 +971,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/new_train_data/normal/*.png"
-    test_data_path = "mura_data/RGB/clahe_test_data_nctu"
+    test_data_path = "mura_data/RGB/clahe_low_test_data_nctu_v2"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -1016,13 +1015,13 @@ if __name__ == "__main__":
     
 #     print(train_images_dataset)
     """ run trainning process """
-#     train_images = glob(train_images_path)
-#     train_images_dataset = load_image_train(train_images, batch_size)
-#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-#     size_of_dataset = len(list(train_images_dataset)) * batch_size
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-#     steps = int(size_of_dataset/batch_size)
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+    steps = int(size_of_dataset/batch_size)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
 #     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
