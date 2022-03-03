@@ -219,8 +219,8 @@ def prep_stage(x):
     ### custom 
     x = tf.cast(x, tf.float32) / 255.0
     x = tfio.experimental.color.rgb_to_bgr(x)
-    x = tf.image.adjust_contrast(x, 13.)
-    x = tf.image.adjust_hue(x, 13.)
+    x = tf.image.adjust_contrast(x, 11.)
+    x = tf.image.adjust_hue(x, 11.)
     x = tf.image.adjust_gamma(x)
     x = tfa.image.median_filter2d(x)
     x = tf.cast(x * 255.0, tf.uint8)
@@ -959,7 +959,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "normal-nctu-data"
+    mode = "custum-nctu-data"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -971,7 +971,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/new_train_data/normal/*.png"
-    test_data_path = "mura_data/RGB/clahe_low_test_data_nctu_v2"
+    test_data_path = "mura_data/RGB/clahe_mid_test_data_nctu_v2"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -1013,7 +1013,6 @@ if __name__ == "__main__":
     
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
-#     print(train_images_dataset)
     """ run trainning process """
     train_images = glob(train_images_path)
     train_images_dataset = load_image_train(train_images, batch_size)
@@ -1023,7 +1022,7 @@ if __name__ == "__main__":
     steps = int(size_of_dataset/batch_size)
     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
-#     """ run testing """
+    """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
     # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
 
