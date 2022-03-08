@@ -45,6 +45,7 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
+LIMIT_TRAIN_IMAGES = 1000
 LIMIT_TEST_IMAGES = 200
 
 print("TensorFlow version: ", tf.__version__)
@@ -141,73 +142,6 @@ ssim = SSIMLoss()
 # In[ ]:
 
 
-'''
-    Function for Balance Contrast Enhancement Technique (BCET)
-    This technique provides solution to biased color (RGB) composition. 
-    The contrast of the image can be stretched or compressed without changing the histogram pattern of the input image(x).
-    The solution is based on the parabolic function obtained from the input image.
-'''
-@tf.function
-def bcet(img):
-
-    
-    Lmin = tf.reduce_min(img) # MINIMUM OF INPUT IMAGE
-#     Lmin = np.min(img) # MINIMUM OF INPUT IMAGE
-#     print("Lmin", Lmin)
-    Lmax = tf.reduce_max(img) # MAXIMUM OF INPUT IMAGE
-#     Lmax = np.max(img) # MAXIMUM OF INPUT IMAGE
-#     print("Lmax", Lmax)
-    Lmean = tf.reduce_mean(img) #MEAN OF INPUT IMAGE
-#     Lmean = np.mean(img) #MEAN OF INPUT IMAGE
-#     print("Lmean", Lmean)
-    LMssum = tf.reduce_mean(img * img) #MEAN SQUARE SUM OF INPUT IMAGE
-#     LMssum = np.mean(pow(img, 2)) #MEAN SQUARE SUM OF INPUT IMAGE
-#     print("LMssum", LMssum)
-
-    Gmin = tf.constant(0, dtype="float32") #MINIMUM OF OUTPUT IMAGE
-    Gmax = tf.constant(255, dtype="float32") #MAXIMUM OF OUTPUT IMAGE
-    Gmean = tf.constant(110, dtype="float32") #MEAN OF OUTPUT IMAGE
-    
-    subber = tf.constant(2, dtype="float32")
-    
-    # find b
-    
-    bnum = ((Lmax**subber)*(Gmean-Gmin)) - (LMssum*(Gmax-Gmin)) + ((Lmin**subber) *(Gmax-Gmean))
-    bden = subber * ((Lmax*(Gmean-Gmin)) - (Lmean*(Gmax-Gmin)) + (Lmin*(Gmax-Gmean)))
-    
-    b = bnum/bden
-    
-    # find a
-    a1 = Gmax-Gmin
-    a2 = Lmax-Lmin
-    a3 = Lmax+Lmin-(subber*b)
-            
-    a = a1/(a2*a3)
-    
-    # find c
-    c = Gmin - (a*(Lmin-b)**subber)
-    
-    # Process raster
-    y = a*((img - b)**subber) + c #PARABOLIC FUNCTION
-
-    return y
-
-def bcet_processing(img,channels=3):
-    img = tf.cast(img, tf.float32)
-    layers = []
-    for i in range(channels):
-        layer = img[:,:,i]
-        layer = bcet(layer)
-        layers.append(layer)
-        
-    final_image = tf.stack(layers, axis=-1)
-
-    return final_image
-
-
-# In[ ]:
-
-
 # function for  preprocessing data 
 def prep_stage(x):
     ### implement clahe to images
@@ -217,13 +151,13 @@ def prep_stage(x):
     # x = bcet_processing(x)
     
     ### custom 
-    x = tf.cast(x, tf.float32) / 255.0
-    x = tfio.experimental.color.rgb_to_bgr(x)
-    x = tf.image.adjust_contrast(x, 11.)
-    x = tf.image.adjust_hue(x, 11.)
-    x = tf.image.adjust_gamma(x)
-    x = tfa.image.median_filter2d(x)
-    x = tf.cast(x * 255.0, tf.uint8)
+    # x = tf.cast(x, tf.float32) / 255.0
+    # x = tfio.experimental.color.rgb_to_bgr(x)
+    # x = tf.image.adjust_contrast(x, 11.)
+    # x = tf.image.adjust_hue(x, 11.)
+    # x = tf.image.adjust_gamma(x)
+    # x = tfa.image.median_filter2d(x)
+    # x = tf.cast(x * 255.0, tf.uint8)
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
 
@@ -313,8 +247,12 @@ def load_image_with_label(image_path, label):
 
 
 def tf_dataset(images_path, batch_size, labels=False, class_names=None):
-  
+    
+    if LIMIT_TRAIN_IMAGES != "MAX":
+        images_path = images_path[LIMIT_TRAIN_IMAGES:]
+        
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
+    # tf.size(dataset)
     dataset = dataset.shuffle(buffer_size=10240)
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
@@ -959,7 +897,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "custum-nctu-data"
+    mode = "sabelx-nctu-data"
     batch_size = 32
     num_epochs = 1000
     name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
@@ -970,8 +908,8 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = "mura_data/RGB/new_train_data/normal/*.png"
-    test_data_path = "mura_data/RGB/clahe_mid_test_data_nctu_v2"
+    train_images_path = "mura_data/RGB/train_data_nctu_v2/normal/*.png"
+    test_data_path = "mura_data/RGB/test_data_nctu_v2"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
