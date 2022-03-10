@@ -249,7 +249,7 @@ def load_image_with_label(image_path, label):
 def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     
     if LIMIT_TRAIN_IMAGES != "MAX":
-        images_path = images_path[LIMIT_TRAIN_IMAGES:]
+        images_path = images_path[:LIMIT_TRAIN_IMAGES]
         
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
     # tf.size(dataset)
