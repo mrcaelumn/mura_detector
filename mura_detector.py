@@ -897,10 +897,11 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "sabelx-nctu-data"
+    mode = "clahe-nctu-data"
     batch_size = 32
     num_epochs = 1000
-    name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)
+    # name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)+
+    name_model= f"{str(IMG_H)}_rgb_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
     resume_trainning = False
     lr = 1e-5
@@ -909,7 +910,7 @@ if __name__ == "__main__":
     
     # set dir of files
     train_images_path = "mura_data/RGB/train_data_nctu_v2/normal/*.png"
-    test_data_path = "mura_data/RGB/test_data_nctu_v2"
+    test_data_path = "mura_data/RGB/clahe_train_data_nctu"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -952,13 +953,13 @@ if __name__ == "__main__":
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
     """ run trainning process """
-    train_images = glob(train_images_path)
-    train_images_dataset = load_image_train(train_images, batch_size)
-    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    size_of_dataset = len(list(train_images_dataset)) * batch_size
+#     train_images = glob(train_images_path)
+#     train_images_dataset = load_image_train(train_images, batch_size)
+#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+#     size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-    steps = int(size_of_dataset/batch_size)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+#     steps = int(size_of_dataset/batch_size)
+#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
