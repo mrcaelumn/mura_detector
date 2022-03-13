@@ -143,7 +143,7 @@ ssim = SSIMLoss()
 
 
 # function for  preprocessing data 
-def prep_stage(x):
+def prep_stage(x, training=True):
     ### implement clahe to images
     # x = tf_clahe.clahe(x)
     
@@ -160,10 +160,10 @@ def prep_stage(x):
     # x = tf.cast(x * 255.0, tf.uint8)
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
-
-    ### crop or pad images
-    # x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
-    x = tf.image.resize(x, (IMG_H, IMG_W))
+    if training:
+        x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
+    else:
+        x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
 
 def augment_dataset_batch_train(dataset_batch):
@@ -237,7 +237,7 @@ def load_image_with_label(image_path, label):
 #     print(image_path)
     img = tf.io.read_file(image_path)
     img = tf.io.decode_png(img, channels=IMG_C)
-    img = prep_stage(img)
+    img = prep_stage(img, training=False)
     img = tf.cast(img, tf.float32)
     #     rescailing image from 0,255 to -1,1
     img = (img - 127.5) / 127.5
@@ -897,7 +897,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "clahe-nctu-data"
+    mode = "normal-clean-data"
     batch_size = 32
     num_epochs = 1000
     # name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)+
@@ -909,8 +909,8 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = "mura_data/RGB/train_data_nctu_v2/normal/*.png"
-    test_data_path = "mura_data/RGB/clahe_train_data_nctu"
+    train_images_path = "mura_data/RGB/mura_clean/train_data/normal/*.png"
+    test_data_path = "mura_data/RGB/mura_clean/test_data"
     saved_model_path = "mura_data/RGB/saved_model/"
     
     logs_path = "mura_data/RGB/logs/"
@@ -953,13 +953,13 @@ if __name__ == "__main__":
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
     """ run trainning process """
-#     train_images = glob(train_images_path)
-#     train_images_dataset = load_image_train(train_images, batch_size)
-#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-#     size_of_dataset = len(list(train_images_dataset)) * batch_size
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-#     steps = int(size_of_dataset/batch_size)
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+    steps = int(size_of_dataset/batch_size)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
