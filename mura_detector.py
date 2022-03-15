@@ -161,7 +161,7 @@ def prep_stage(x, training=True):
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
     if training:
-        x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W)
+        x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W, method="nearest")
     else:
         x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
