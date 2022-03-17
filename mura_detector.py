@@ -45,7 +45,7 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
-LIMIT_TRAIN_IMAGES = 1000
+LIMIT_TRAIN_IMAGES = "MAX"
 LIMIT_TEST_IMAGES = 200
 
 print("TensorFlow version: ", tf.__version__)
@@ -118,6 +118,27 @@ class AdversarialLoss(tf.keras.losses.Loss):
         logits_in = tf.cast(logits_in, labels_in.dtype)
         # Loss 4: FEATURE Loss
         return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_in, labels=labels_in))
+    
+# class for Gradient Magnitude similarity loss function
+class GMSLoss(tf.keras.losses.Loss):
+    def __init__(self,
+             reduction=tf.keras.losses.Reduction.AUTO,
+             name='GMSLoss'):
+        super().__init__(reduction=reduction, name=name)
+
+    
+    def call(self, ori, recon):
+        c=0.0026
+        recon = tf.convert_to_tensor(recon)
+        ori = tf.cast(ori, recon.dtype)
+        x = tf.reduce_mean(ori, keepdims=True)
+        y = tf.reduce_mean(recon, keepdims=True)
+        # tfa.image.median_filter2d
+        g_I = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(x, padding="CONSTANT"))
+        g_Ir = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(y, padding="CONSTANT"))
+        g_map = (2 * g_I * g_Ir + c) / (g_I**2 + g_Ir**2 + c)
+        
+        return tf.reduce_mean(1-g_map)
         
 
 
@@ -137,6 +158,9 @@ feat = FeatureLoss()
 
 # SSIM loss
 ssim = SSIMLoss()
+
+# GMS loss
+gms = GMSLoss()
 
 
 # In[ ]:
@@ -161,7 +185,7 @@ def prep_stage(x, training=True):
     ### implement Histogram normalization to iamges
     # x = tfa.image.equalize(x)
     if training:
-        x = tf.image.resize_with_crop_or_pad(x, IMG_H, IMG_W, method="nearest")
+        x = tf.image.resize(x, (IMG_H, IMG_W))
     else:
         x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
@@ -489,6 +513,7 @@ class ResUnetGAN(tf.keras.models.Model):
         self.ADV_REG_RATE_LF = 1
         self.REC_REG_RATE_LF = 50
         self.SSIM_REG_RATE_LF = 10
+        self.GMS_REG_RATE_LF = 10
         self.FEAT_REG_RATE_LF = 1
         self.field_names = ['epoch', 'gen_loss', 'disc_loss']
         self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
@@ -542,8 +567,12 @@ class ResUnetGAN(tf.keras.models.Model):
             # Loss 4: FEATURE Loss
 #             loss_feat = tf.reduce_mean(mse(real_output, fake_output))
             loss_feat = feat(feature_real, feature_fake)
+            
+            # Loss 5: GMS loss
+            
+            loss_gms = gms(images, reconstructed_images)
 
-            gen_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_rec * self.REC_REG_RATE_LF) + (loss_ssim * self.SSIM_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
+            gen_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_rec * self.REC_REG_RATE_LF) + (loss_ssim * self.SSIM_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) + (loss_gms * self.GMS_REG_RATE_LF))
             disc_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
 #             disc_loss = adv_loss
 
@@ -564,6 +593,7 @@ class ResUnetGAN(tf.keras.models.Model):
 #             "gen_adv_loss": gen_adv_loss,
             "loss_rec": loss_rec,
             "loss_ssim": loss_ssim,
+            "loss_gms": loss_gms,
             "loss_feat": loss_feat
         }
 
@@ -832,7 +862,7 @@ def scheduler(epoch, lr):
     else:
         return lr * tf.math.exp(-0.1)
 
-def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, steps):
+def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
     # create and use callback:
     
     saver_callback = CustomSaver(
@@ -866,11 +896,11 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, st
 # In[ ]:
 
 
-def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=False):
+def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, resume=False):
     init_epoch = 0
     
     
-    callbacks = set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal, steps)
+    callbacks = set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal)
     if resume:
         print("resuming trainning. ", name_model)
         skip_epoch, _, _, _ = model.load_save_processing(logs_file, num_epochs, [], [], path_gmodal, path_dmodal, resume=resume)
@@ -898,7 +928,8 @@ if __name__ == "__main__":
     """ Set Hyperparameters """
     
     mode = "normal-clean-data"
-    batch_size = 32
+    # batch_size = 32
+    steps = 300
     num_epochs = 1000
     # name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)+
     name_model= f"{str(IMG_H)}_rgb_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
@@ -954,12 +985,15 @@ if __name__ == "__main__":
     
     """ run trainning process """
     train_images = glob(train_images_path)
+    # size_of_dataset = len(list(train_images_dataset)) * batch_size
+    batch_size = int(len(train_images)/steps)
+    print("batch_size: ", batch_size)
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    size_of_dataset = len(list(train_images_dataset)) * batch_size
     
-    steps = int(size_of_dataset/batch_size)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+    
+    
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
