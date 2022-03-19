@@ -168,23 +168,11 @@ gms = GMSLoss()
 
 # function for  preprocessing data 
 def prep_stage(x, training=True):
-    ### implement clahe to images
-    # x = tf_clahe.clahe(x)
-    
-    ### implement BCET to iamges
-    # x = bcet_processing(x)
-    
-    ### custom 
-    # x = tf.cast(x, tf.float32) / 255.0
-    # x = tfio.experimental.color.rgb_to_bgr(x)
-    # x = tf.image.adjust_contrast(x, 11.)
-    # x = tf.image.adjust_hue(x, 11.)
-    # x = tf.image.adjust_gamma(x)
-    # x = tfa.image.median_filter2d(x)
-    # x = tf.cast(x * 255.0, tf.uint8)
-    ### implement Histogram normalization to iamges
-    # x = tfa.image.equalize(x)
+
+   
+
     if training:
+        x = tf.image.adjust_contrast(x, 0.5)
         x = tf.image.resize(x, (IMG_H, IMG_W))
     else:
         x = tf.image.resize(x, (IMG_H, IMG_W))
@@ -569,7 +557,6 @@ class ResUnetGAN(tf.keras.models.Model):
             loss_feat = feat(feature_real, feature_fake)
             
             # Loss 5: GMS loss
-            
             loss_gms = gms(images, reconstructed_images)
 
             gen_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_rec * self.REC_REG_RATE_LF) + (loss_ssim * self.SSIM_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) + (loss_gms * self.GMS_REG_RATE_LF))
