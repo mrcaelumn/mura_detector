@@ -154,6 +154,7 @@ cross_entropy = AdversarialLoss()
 mae = tf.keras.losses.MeanAbsoluteError()
 # L2 Loss
 mse = tf.keras.losses.MeanSquaredError() 
+
 feat = FeatureLoss()
 
 # SSIM loss
@@ -501,7 +502,7 @@ class ResUnetGAN(tf.keras.models.Model):
         self.ADV_REG_RATE_LF = 1
         self.REC_REG_RATE_LF = 50
         self.SSIM_REG_RATE_LF = 10
-        self.GMS_REG_RATE_LF = 10
+        # self.GMS_REG_RATE_LF = 10
         self.FEAT_REG_RATE_LF = 1
         self.field_names = ['epoch', 'gen_loss', 'disc_loss']
         self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
@@ -634,7 +635,7 @@ class ResUnetGAN(tf.keras.models.Model):
         # print(test_dateset)
         
         # range between 0-1
-        anomaly_weight = 0.8
+        anomaly_weight = 0.1
         
         scores_ano = []
         real_label = []
@@ -790,6 +791,17 @@ class ResUnetGAN(tf.keras.models.Model):
 # In[ ]:
 
 
+def plot_epoch_result(epochs, loss, name, model_name, colour):
+        plt.plot(epochs, loss, colour, label=name)
+    #     plt.plot(epochs, disc_loss, 'b', label='Discriminator loss')
+        plt.title(name)
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig(model_name+ '_'+name+'_epoch_result.png')
+        plt.show()
+        plt.clf()
+        
 class CustomSaver(tf.keras.callbacks.Callback):
     def __init__(self,
                  g_model_path,
@@ -891,25 +903,44 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
 def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=False):
     init_epoch = 0
     
+    epochs_list = []
+    gen_loss_list = []
+    disc_loss_list = []
     
-    callbacks = set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal)
-    if resume:
-        print("resuming trainning. ", name_model)
-        skip_epoch, _, _, _ = model.load_save_processing(logs_file, num_epochs, [], [], path_gmodal, path_dmodal, resume=resume)
-        if skip_epoch < num_epochs:
-            init_epoch = skip_epoch
+    # callbacks = set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal)
+    # if resume:
+    #     print("resuming trainning. ", name_model)
+    #     skip_epoch, _, _, _ = model.load_save_processing(logs_file, num_epochs, [], [], path_gmodal, path_dmodal, resume=resume)
+    #     if skip_epoch < num_epochs:
+    #         init_epoch = skip_epoch
             
-    model.fit(train_dataset, 
-              epochs=num_epochs, 
-              callbacks=callbacks, 
-              # initial_epoch=init_epoch,
-              shuffle=True, 
-              steps_per_epoch=steps
-             )
+            
+    for epoch in range(0, num_epochs):
+        epoch += 1
+        
+        result = model.fit(
+            train_dataset, 
+            epochs = 1,
+                  # epochs=num_epochs, 
+                  # callbacks=callbacks, 
+                  # initial_epoch=init_epoch,
+            shuffle=True, 
+            steps_per_epoch=steps
+        )
+        
+        epochs_list.append(epoch)
+        gen_loss_list.append(result.history["gen_loss"][0])
+        disc_loss_list.append(result.history["disc_loss"][0])
+        
+        if epoch % 15 == 0 or epoch <= 15 or epoch == num_epochs:
+            model.saved_model(path_gmodal, path_dmodal)
+            print('saved for epoch:', epoch)
+    
+    plot_epoch_result(epochs_list, gen_loss_list, "Generator_Loss", name_model, "g")
+    plot_epoch_result(epochs_list, disc_loss_list, "Discriminator_Loss", name_model, "r")
 
 
 # In[ ]:
-
 
 
 if __name__ == "__main__":
