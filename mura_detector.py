@@ -869,18 +869,18 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
     reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='disc_loss', factor=0.2,
                               patience=7, min_lr=0.000001)
     
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(
-        log_dir=logs_path + name_model + "/" + datetime.now().strftime("%Y%m%d-%H%M%S"), 
-        histogram_freq=1
-    )
+#     tensorboard_callback = tf.keras.callbacks.TensorBoard(
+#         log_dir=logs_path + name_model + "/" + datetime.now().strftime("%Y%m%d-%H%M%S"), 
+#         histogram_freq=1
+#     )
     
 
     callbacks = [
         saver_callback,
 #         checkpoints_callback,
-        tensorboard_callback,
+        # tensorboard_callback,
 #         lr_callback,
-        reduce_lr,
+        # reduce_lr,
     ]
     return callbacks
 
@@ -899,7 +899,13 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
         if skip_epoch < num_epochs:
             init_epoch = skip_epoch
             
-    model.fit(train_dataset, epochs=num_epochs, callbacks=callbacks, initial_epoch=init_epoch, shuffle=True, steps_per_epoch=steps)
+    model.fit(train_dataset, 
+              epochs=num_epochs, 
+              callbacks=callbacks, 
+              # initial_epoch=init_epoch,
+              shuffle=True, 
+              steps_per_epoch=steps
+             )
 
 
 # In[ ]:
