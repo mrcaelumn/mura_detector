@@ -172,7 +172,7 @@ def prep_stage(x, training=True):
    
 
     if training:
-        x = tf.image.adjust_contrast(x, 0.5)
+        # x = tf.image.adjust_contrast(x, 0.5)
         x = tf.image.resize(x, (IMG_H, IMG_W))
     else:
         x = tf.image.resize(x, (IMG_H, IMG_W))
@@ -559,7 +559,12 @@ class ResUnetGAN(tf.keras.models.Model):
             # Loss 5: GMS loss
             loss_gms = gms(images, reconstructed_images)
 
-            gen_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_rec * self.REC_REG_RATE_LF) + (loss_ssim * self.SSIM_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) + (loss_gms * self.GMS_REG_RATE_LF))
+            gen_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) 
+                                      + (loss_rec * self.REC_REG_RATE_LF) 
+                                      + (loss_ssim * self.SSIM_REG_RATE_LF) 
+                                      + (loss_feat * self.FEAT_REG_RATE_LF) 
+                                      # + (loss_gms * self.GMS_REG_RATE_LF)
+                                     )
             disc_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
 #             disc_loss = adv_loss
 
@@ -914,7 +919,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "normal-clean-data"
+    mode = "20220210"
     batch_size = 32
     steps = 160
     num_epochs = 1000
