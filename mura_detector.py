@@ -914,10 +914,9 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
     #     if skip_epoch < num_epochs:
     #         init_epoch = skip_epoch
             
-            
     for epoch in range(0, num_epochs):
         epoch += 1
-        
+        print("running epoch: ", epoch)
         result = model.fit(
             train_dataset, 
             epochs = 1,
@@ -932,7 +931,11 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
         gen_loss_list.append(result.history["gen_loss"][0])
         disc_loss_list.append(result.history["disc_loss"][0])
         
-        if epoch % 15 == 0 or epoch <= 15 or epoch == num_epochs:
+        # print(epochs_list)
+        # print(gen_loss_list)
+        # print(disc_loss_list)
+        
+        if epoch % 15 == 0 or epoch >= 15 or epoch == num_epochs:
             model.saved_model(path_gmodal, path_dmodal)
             print('saved for epoch:', epoch)
     
