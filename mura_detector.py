@@ -45,7 +45,7 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
-LIMIT_TRAIN_IMAGES = "MAX"
+LIMIT_TRAIN_IMAGES = 15000
 LIMIT_TEST_IMAGES = 200
 
 print("TensorFlow version: ", tf.__version__)
@@ -180,14 +180,14 @@ def prep_stage(x, training=True):
 
 def augment_dataset_batch_train(dataset_batch):
 
-    flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
-              num_parallel_calls=AUTOTUNE)
+#     flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
+#               num_parallel_calls=AUTOTUNE)
     
-    flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
-              num_parallel_calls=AUTOTUNE)
+#     flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
+#               num_parallel_calls=AUTOTUNE)
     
-    dataset_batch = dataset_batch.concatenate(flip_up_down)
-    dataset_batch = dataset_batch.concatenate(flip_left_right)
+#     dataset_batch = dataset_batch.concatenate(flip_up_down)
+#     dataset_batch = dataset_batch.concatenate(flip_left_right)
     
     
     return dataset_batch
@@ -883,7 +883,7 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
 # In[ ]:
 
 
-def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, resume=False):
+def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=False):
     init_epoch = 0
     
     
@@ -894,7 +894,7 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
         if skip_epoch < num_epochs:
             init_epoch = skip_epoch
             
-    model.fit(train_dataset, epochs=num_epochs, callbacks=callbacks, initial_epoch=init_epoch)
+    model.fit(train_dataset, epochs=num_epochs, callbacks=callbacks, initial_epoch=init_epoch, shuffle=True, steps_per_epoch=steps)
 
 
 # In[ ]:
@@ -915,8 +915,8 @@ if __name__ == "__main__":
     """ Set Hyperparameters """
     
     mode = "normal-clean-data"
-    # batch_size = 32
-    steps = 300
+    batch_size = 32
+    steps = 160
     num_epochs = 1000
     # name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)+
     name_model= f"{str(IMG_H)}_rgb_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
@@ -973,14 +973,14 @@ if __name__ == "__main__":
     """ run trainning process """
     train_images = glob(train_images_path)
     # size_of_dataset = len(list(train_images_dataset)) * batch_size
-    batch_size = int(len(train_images)/steps)
-    print("batch_size: ", batch_size)
+    # batch_size = int(len(train_images)/steps)
+    # print("batch_size: ", batch_size)
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     
     
     
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model,resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
