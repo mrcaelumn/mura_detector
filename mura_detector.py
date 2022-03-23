@@ -45,7 +45,7 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
-LIMIT_TRAIN_IMAGES = 7000
+LIMIT_TRAIN_IMAGES = 15000
 LIMIT_TEST_IMAGES = 200
 
 print("TensorFlow version: ", tf.__version__)
