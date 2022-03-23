@@ -131,14 +131,17 @@ class GMSLoss(tf.keras.losses.Loss):
         c=0.0026
         recon = tf.convert_to_tensor(recon)
         ori = tf.cast(ori, recon.dtype)
-        x = tf.reduce_mean(ori, keepdims=True)
-        y = tf.reduce_mean(recon, keepdims=True)
+        
         # tfa.image.median_filter2d
-        g_I = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(x, padding="CONSTANT"))
-        g_Ir = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(y, padding="CONSTANT"))
+        x = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(ori, padding="CONSTANT"))
+        y = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(recon, padding="CONSTANT"))
+        
+        g_I = tf.reduce_mean(ori, axis=1, keepdims=True)
+        g_Ir = tf.reduce_mean(recon, axis=1, keepdims=True)
+        
         g_map = (2 * g_I * g_Ir + c) / (g_I**2 + g_Ir**2 + c)
         
-        return tf.reduce_mean(1-g_map)
+        return tf.reduce_mean(1 - g_map)
         
 
 
@@ -714,7 +717,7 @@ class ResUnetGAN(tf.keras.models.Model):
         print("Leakage Rat (FNR): ", FN/(FN+TP))
         print("TNR: ", TN/(FP+TN))
         print("precision_score: ", TP/(TP+FP))
-        print("recall_score (func): ", recall_score(real_label, scores_ano))
+        # print("recall_score (func): ", recall_score(real_label, scores_ano))
         print("recall_score (manual): ", TP/(TP+FN))
         print("NPV: ", TN/(FN+TN))
 #         F1 = 2 * (precision * recall) / (precision + recall)
@@ -917,14 +920,16 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
     for epoch in range(0, num_epochs):
         epoch += 1
         print("running epoch: ", epoch)
+        
+        final_dataset = train_dataset.shuffle(buffer_size=10, seed=123, reshuffle_each_iteration=True).take(steps)
         result = model.fit(
-            train_dataset, 
+            final_dataset, 
             epochs = 1,
                   # epochs=num_epochs, 
                   # callbacks=callbacks, 
                   # initial_epoch=init_epoch,
-            shuffle=True, 
-            steps_per_epoch=steps
+            # shuffle=True, 
+            # steps_per_epoch=steps
         )
         
         epochs_list.append(epoch)
