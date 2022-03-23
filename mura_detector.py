@@ -1016,10 +1016,6 @@ if __name__ == "__main__":
     to build your model inside.
     """
     
-    strategy = tf.distribute.MirroredStrategy()
-    
-    print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
-
     input_shape = (IMG_H, IMG_W, IMG_C)
     # print(input_shape)
     
@@ -1028,18 +1024,17 @@ if __name__ == "__main__":
     # set input 
     inputs = tf.keras.layers.Input(input_shape, name="input_1")
     
-    g_model = build_generator_resnet50_unet(inputs)
-    
-    d_model = build_discriminator(inputs)
-    
-#     d_model.summary()
-#     g_model.summary()
-    
-    resunetgan = ResUnetGAN(g_model, d_model)
-    
+
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
-    
+    g_model = build_generator_resnet50_unet(inputs)
+
+    d_model = build_discriminator(inputs)
+
+#     d_model.summary()
+#     g_model.summary()
+
+    resunetgan = ResUnetGAN(g_model, d_model)
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
     """ run trainning process """
