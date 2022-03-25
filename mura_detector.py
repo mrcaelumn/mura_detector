@@ -291,8 +291,8 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     dataset = dataset.shuffle(buffer_size=10240)
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
-    # dataset = dataset.batch(batch_size)
-    # dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     return dataset
 
 
@@ -523,9 +523,9 @@ class ResUnetGAN(tf.keras.models.Model):
         # Regularization Rate for each loss function
         self.ADV_REG_RATE_LF = 1
         self.REC_REG_RATE_LF = 50
-        self.SSIM_REG_RATE_LF = 10
-        self.GMS_REG_RATE_LF = 10
-        self.MSGMS_REG_RATE_LF = 10
+        self.SSIM_REG_RATE_LF = 50
+        self.GMS_REG_RATE_LF = 50
+        # self.MSGMS_REG_RATE_LF = 10
         self.FEAT_REG_RATE_LF = 1
         self.field_names = ['epoch', 'gen_loss', 'disc_loss']
         self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
@@ -924,7 +924,7 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
 # In[ ]:
 
 
-def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, batch_size,resume=False):
+def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=False):
     init_epoch = 0
     
     epochs_list = []
@@ -942,10 +942,7 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
         epoch += 1
         print("running epoch: ", epoch)
         train_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True)
-        
-        final_dataset = train_dataset.take(steps*batch_size).cache()
-        final_dataset = final_dataset.batch(batch_size)
-        final_dataset = final_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+        final_dataset = train_dataset.take(steps).cache()
         
         # final_dataset = final_dataset.take(steps)
         result = model.fit(
