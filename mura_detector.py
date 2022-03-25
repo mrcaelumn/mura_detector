@@ -941,10 +941,8 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
     for epoch in range(0, num_epochs):
         epoch += 1
         print("running epoch: ", epoch)
-        train_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True)
-        final_dataset = train_dataset.take(steps).cache()
+        final_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True).take(steps)
         
-        # final_dataset = final_dataset.take(steps)
         result = model.fit(
             final_dataset, 
             epochs = 1,
