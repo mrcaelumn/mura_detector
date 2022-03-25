@@ -1045,7 +1045,7 @@ if __name__ == "__main__":
     # print("batch_size: ", batch_size)
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, batch_size,resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
