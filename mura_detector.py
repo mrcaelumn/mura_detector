@@ -185,9 +185,6 @@ ssim = SSIMLoss()
 # GMS loss
 gms = GMSLoss()
 
-# MS GMS loss
-msgms = MSGMSLoss()
-
 
 # In[ ]:
 
@@ -294,8 +291,8 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     dataset = dataset.shuffle(buffer_size=10240)
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+    # dataset = dataset.batch(batch_size)
+    # dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     return dataset
 
 
@@ -575,7 +572,7 @@ class ResUnetGAN(tf.keras.models.Model):
             loss_rec = mae(images, reconstructed_images)
         
             # Loss 3: SSIM Loss
-            # loss_ssim =  ssim(images, reconstructed_images)
+            loss_ssim =  ssim(images, reconstructed_images)
         
             # Loss 4: FEATURE Loss
             loss_feat = feat(feature_real, feature_fake)
@@ -590,8 +587,10 @@ class ResUnetGAN(tf.keras.models.Model):
                 (adv_loss * self.ADV_REG_RATE_LF) 
                 + (loss_rec * self.REC_REG_RATE_LF) 
                 + (loss_feat * self.FEAT_REG_RATE_LF) 
+                + (loss_ssim * self.SSIM_REG_RATE_LF) 
                 + (loss_gms * self.GMS_REG_RATE_LF) 
             )
+            
             disc_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
 #             disc_loss = adv_loss
 
@@ -925,7 +924,7 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
 # In[ ]:
 
 
-def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=False):
+def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, batch_size,resume=False):
     init_epoch = 0
     
     epochs_list = []
@@ -942,8 +941,13 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
     for epoch in range(0, num_epochs):
         epoch += 1
         print("running epoch: ", epoch)
+        train_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True)
         
-        final_dataset = train_dataset.shuffle(buffer_size=10, seed=123, reshuffle_each_iteration=True).take(steps)
+        final_dataset = train_dataset.take(steps*batch_size).cache()
+        final_dataset = final_dataset.batch(batch_size)
+        final_dataset = final_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+        
+        # final_dataset = final_dataset.take(steps)
         result = model.fit(
             final_dataset, 
             epochs = 1,
@@ -986,7 +990,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "20220210"
+    mode = "gms_20220210"
     batch_size = 32
     steps = 160
     num_epochs = 1000
@@ -1044,10 +1048,7 @@ if __name__ == "__main__":
     # print("batch_size: ", batch_size)
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    
-    
-    
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, batch_size,resume=resume_trainning)
     
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
