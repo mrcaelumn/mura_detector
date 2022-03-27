@@ -215,7 +215,7 @@ def enhance_image(image, beta=0.5):
 # function for  preprocessing data 
 def prep_stage(x, training=True):
 
-    beta_contrast = 0.1
+    beta_contrast = 0.4
 
     if training:
         x = enhance_image (x, beta_contrast)
