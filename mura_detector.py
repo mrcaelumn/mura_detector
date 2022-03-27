@@ -45,6 +45,7 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
+
 LIMIT_TRAIN_IMAGES = 15000
 LIMIT_TEST_IMAGES = 200
 
@@ -423,6 +424,7 @@ def plot_confusion_matrix(cm, classes,
     plt.clf()
 
 
+
 # In[ ]:
 
 
@@ -531,7 +533,7 @@ class ResUnetGAN(tf.keras.models.Model):
         self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
         self.g_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
     
-    
+
     def compile(self, g_optimizer, d_optimizer, filepath, resume=False):
         super(ResUnetGAN, self).compile()
         self.g_optimizer = g_optimizer
@@ -746,8 +748,9 @@ class ResUnetGAN(tf.keras.models.Model):
     
     
     
-        
+       
     def checking_gen_disc(self, mode, g_filepath, d_filepath, test_data_path):
+
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
 #         path = "mura_data/RGB/test_data/normal/normal.bmp"
@@ -761,8 +764,10 @@ class ResUnetGAN(tf.keras.models.Model):
         for i, v in paths.items():
             print(i,v)
             
+
             width=IMG_W
             height=IMG_H
+
             rows = 1
             cols = 3
             axes=[]
@@ -771,6 +776,7 @@ class ResUnetGAN(tf.keras.models.Model):
             
             img = tf.io.read_file(v)
             img = tf.io.decode_png(img, channels=IMG_C)
+
             
             name_subplot = mode+'_original_'+i
             axes.append( fig.add_subplot(rows, cols, 1) )
@@ -810,6 +816,7 @@ class ResUnetGAN(tf.keras.models.Model):
             fig.savefig(mode+'_'+i+'.png')
             plt.show()
             plt.clf()
+
 
 
 # In[ ]:
@@ -982,6 +989,7 @@ if __name__ == "__main__":
     Datasets: For trainning dataset, it'll have additional datasets (flip-up-down and flip-right-left)
     '''
     
+
     # run the function here
     """ Set Hyperparameters """
     
@@ -1024,17 +1032,20 @@ if __name__ == "__main__":
     inputs = tf.keras.layers.Input(input_shape, name="input_1")
     
 
+
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     g_model = build_generator_resnet50_unet(inputs)
 
+
     d_model = build_discriminator(inputs)
 
 #     d_model.summary()
-#     g_model.summary()
+
 
     resunetgan = ResUnetGAN(g_model, d_model)
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
+
     
     """ run trainning process """
     train_images = glob(train_images_path)
@@ -1048,6 +1059,7 @@ if __name__ == "__main__":
     """ run testing """
     resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
     # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+
 
 
 # In[ ]:
