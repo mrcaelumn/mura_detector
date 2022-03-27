@@ -607,7 +607,7 @@ class ResUnetGAN(tf.keras.models.Model):
             # loss_feat = feat(feature_real, feature_fake)
             loss_feat = multimse(feature_real, feature_fake)
             # Loss 5: GMS loss
-            loss_gms = gms(images, reconstructed_images)
+            # loss_gms = gms(images, reconstructed_images)
             
             # Loss 6: MSGMS loss
             # loss_msgms = msgms(images, reconstructed_images)
@@ -618,7 +618,7 @@ class ResUnetGAN(tf.keras.models.Model):
                 # + (loss_feat * self.FEAT_REG_RATE_LF) 
                 + (loss_feat) 
                 + (loss_ssim * self.SSIM_REG_RATE_LF) 
-                + (loss_gms * self.GMS_REG_RATE_LF) 
+                # + (loss_gms * self.GMS_REG_RATE_LF) 
             )
             
             disc_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
