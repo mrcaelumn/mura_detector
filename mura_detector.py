@@ -133,11 +133,11 @@ class GMSLoss(tf.keras.losses.Loss):
         ori = tf.cast(ori, recon.dtype)
         
         # tfa.image.median_filter2d
-        x = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(ori, padding="REFLECT"))
-        y = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(recon, padding="REFLECT"))
+        g_I = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(ori, padding="REFLECT"))
+        g_Ir = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(recon, padding="REFLECT"))
         
-        g_I = tf.reduce_mean(x, axis=1, keepdims=True)
-        g_Ir = tf.reduce_mean(y, axis=1, keepdims=True)
+        # g_I = tf.reduce_mean(x, axis=1, keepdims=True)
+        # g_Ir = tf.reduce_mean(y, axis=1, keepdims=True)
         
         g_map = (2 * g_I * g_Ir + c) / (g_I**2 + g_Ir**2 + c)
         
