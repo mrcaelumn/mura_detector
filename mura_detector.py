@@ -139,7 +139,7 @@ class GMSLoss(tf.keras.losses.Loss):
         # g_I = tf.reduce_mean(x, axis=1, keepdims=True)
         # g_Ir = tf.reduce_mean(y, axis=1, keepdims=True)
         
-        g_map = (2 * g_I * g_Ir + c) / (g_I**2 + g_Ir**2 + c)
+        g_map = (2 * g_I * g_Ir + c) / (tf.math.square(g_I) + tf.math.square(g_Ir) + c)
         
         return tf.reduce_mean(1 - g_map)
     
