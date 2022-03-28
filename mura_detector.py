@@ -133,8 +133,8 @@ class GMSLoss(tf.keras.losses.Loss):
         ori = tf.cast(ori, recon.dtype)
         
         # tfa.image.median_filter2d
-        g_I = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(ori, padding="REFLECT"))
-        g_Ir = tfio.experimental.filter.prewitt(tfa.image.median_filter2d(recon, padding="REFLECT"))
+        g_I = tf.image.sobel_edges(tfa.image.median_filter2d(ori, padding="REFLECT"))
+        g_Ir = tf.image.sobel_edges(tfa.image.median_filter2d(recon, padding="REFLECT"))
         
         # g_I = tf.reduce_mean(x, axis=1, keepdims=True)
         # g_Ir = tf.reduce_mean(y, axis=1, keepdims=True)
