@@ -866,6 +866,9 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
         
         if epoch % 20 == 0 and epoch >= 20:
             auc = model.testing(test_dateset, path_gmodal, path_dmodal, name_model, evaluate=True)
+            print(
+                    "emodel evaluated at epoch %d: with AUC=%f" % (epoch, auc)
+                )
             if auc > auc_score:
                 
                 best_g_model_path = path_gmodal.replace(".h5", f"_best_{epoch}_{auc:.2f}.h5")
