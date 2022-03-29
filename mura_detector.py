@@ -863,7 +863,7 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
             model.saved_model(path_gmodal, path_dmodal)
             print('saved for epoch:', epoch)
         
-        if epoch % 20 == 0 or epoch >= 20:
+        if epoch % 20 == 0 and epoch >= 20:
             auc = model.testing(test_dateset, path_gmodal, path_dmodal, name_model, evaluate=True)
             if auc > auc_score:
                 
