@@ -856,10 +856,10 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
     for epoch in range(0, num_epochs):
         epoch += 1
         print("running epoch: ", epoch)
-        final_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True).take(steps)
+        # final_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True).take(steps)
         
         result = model.fit(
-            final_dataset, 
+            train_dataset, 
             epochs = 1,
                   # epochs=num_epochs, 
                   # callbacks=callbacks, 
@@ -900,7 +900,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "gms_20220210"
+    mode = "20220210"
     batch_size = 32
     steps = 160
     num_epochs = 1000
