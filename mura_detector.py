@@ -605,7 +605,7 @@ class ResUnetGAN(tf.keras.models.Model):
 #         print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
         auc_out, threshold = roc(real_label, scores_ano, name_model)
-        if evaluate
+        if evaluate:
             return auc_out
         print("auc: ", auc_out)
         print("threshold: ", threshold)
