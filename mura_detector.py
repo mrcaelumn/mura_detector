@@ -45,7 +45,7 @@ IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 
-LIMIT_TRAIN_IMAGES = 15000
+LIMIT_TRAIN_IMAGES = 5000
 LIMIT_TEST_IMAGES = 200
 
 print("TensorFlow version: ", tf.__version__)
@@ -455,9 +455,7 @@ class ResUnetGAN(tf.keras.models.Model):
         # Regularization Rate for each loss function
         self.ADV_REG_RATE_LF = 1
         self.REC_REG_RATE_LF = 50
-        self.SSIM_REG_RATE_LF = 50
-        self.GMS_REG_RATE_LF = 50
-        # self.MSGMS_REG_RATE_LF = 10
+        self.SSIM_REG_RATE_LF = 10
         self.FEAT_REG_RATE_LF = 1
         self.field_names = ['epoch', 'gen_loss', 'disc_loss']
         self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
