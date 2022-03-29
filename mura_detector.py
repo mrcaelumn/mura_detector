@@ -514,7 +514,8 @@ class ResUnetGAN(tf.keras.models.Model):
         return {
             "gen_loss": gen_loss,
             "disc_loss": disc_loss,
-            "adv_loss": adv_loss,
+            "gen_adv_loss": gen_adv_loss,
+            "disc_adv_loss": disc_adv_loss,
             "loss_rec": loss_rec,
             "loss_ssim": loss_ssim,
             "loss_feat": loss_feat
