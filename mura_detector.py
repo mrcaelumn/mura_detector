@@ -476,6 +476,7 @@ class ResUnetGAN(tf.keras.models.Model):
             feature_fake, label_fake = self.discriminator(reconstructed_images, training=True)
 
             # Loss 1: ADVERSARIAL loss
+            
             real_loss = cross_entropy(label_real, tf.ones_like(label_real))
             fake_loss = cross_entropy(label_fake, tf.zeros_like(label_fake))
             disc_adv_loss = real_loss + fake_loss
@@ -559,13 +560,8 @@ class ResUnetGAN(tf.keras.models.Model):
             return None, None, None, None
             
             
-    def testing(self, filepath, g_filepath, d_filepath, name_model):
-#         threshold = 0.7
-        class_names = ["normal", "defect"] # normal = 0, defect = 1
-        test_dateset = load_image_test(filepath, class_names)
-        # print(test_dateset)
-        
-        # range between 0-1
+    def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
+
         anomaly_weight = 0.1
         
         scores_ano = []
@@ -609,6 +605,8 @@ class ResUnetGAN(tf.keras.models.Model):
 #         print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
         auc_out, threshold = roc(real_label, scores_ano, name_model)
+        if evaluate
+            return auc_out
         print("auc: ", auc_out)
         print("threshold: ", threshold)
         
@@ -828,14 +826,16 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
     epochs_list = []
     gen_loss_list = []
     disc_loss_list = []
-    
+    auc_score = 0.0
     # callbacks = set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal)
     # if resume:
     #     print("resuming trainning. ", name_model)
     #     skip_epoch, _, _, _ = model.load_save_processing(logs_file, num_epochs, [], [], path_gmodal, path_dmodal, resume=resume)
     #     if skip_epoch < num_epochs:
     #         init_epoch = skip_epoch
-            
+    class_names = ["normal", "defect"] # normal = 0, defect = 1
+    test_dateset = load_image_test(test_data_path, class_names)
+    
     for epoch in range(0, num_epochs):
         epoch += 1
         print("running epoch: ", epoch)
@@ -862,6 +862,19 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
         if epoch % 15 == 0 or epoch >= 15 or epoch == num_epochs:
             model.saved_model(path_gmodal, path_dmodal)
             print('saved for epoch:', epoch)
+        
+        if epoch % 20 == 0 or epoch >= 20:
+            auc = model.testing(test_dateset, path_gmodal, path_dmodal, name_model, evaluate=True)
+            if auc > auc_score:
+                
+                best_g_model_path = g_model_path.replace(".h5", f"_best_{epoch}_{auc}.h5")
+                best_d_model_path = d_model_path.replace(".h5", f"_best_{epoch}_{auc}.h5")
+                
+                model.saved_model(best_g_model_path, best_d_model_path)
+                auc_score = auc
+                print(
+                    "the best model saved. at epoch %d: with AUC=%f" % (epoch, auc)
+                )
     
     plot_epoch_result(epochs_list, gen_loss_list, "Generator_Loss", name_model, "g")
     plot_epoch_result(epochs_list, disc_loss_list, "Discriminator_Loss", name_model, "r")
@@ -944,7 +957,9 @@ if __name__ == "__main__":
     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
     
     """ run testing """
-    resunetgan.testing(test_data_path, path_gmodal, path_dmodal, name_model)
+    class_names = ["normal", "defect"] # normal = 0, defect = 1
+    test_dateset = load_image_test(test_data_path, class_names)
+    resunetgan.testing(test_dateset, path_gmodal, path_dmodal, name_model)
     # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
 
 
