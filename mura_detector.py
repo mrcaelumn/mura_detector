@@ -85,25 +85,8 @@ class SSIMLoss(tf.keras.losses.Loss):
         recon = tf.convert_to_tensor(recon)
         ori = tf.cast(ori, recon.dtype)
 
-        # Loss 3: SSIM Loss
-#         loss_ssim =  tf.reduce_mean(1 - tf.image.ssim(ori, recon, max_val=1.0)[0]) 
         loss_ssim = tf.math.reduce_sum(1 - tf.image.ssim(ori, recon, 2.0))
         return loss_ssim
-    
-# class for Feature loss function
-class FeatureLoss(tf.keras.losses.Loss):
-    def __init__(self,
-             reduction=tf.keras.losses.Reduction.AUTO,
-             name='FeatureLoss'):
-        super().__init__(reduction=reduction, name=name)
-
-    
-    def call(self, real, fake):
-        fake = tf.convert_to_tensor(fake)
-        real = tf.cast(real, fake.dtype)
-        # Loss 4: FEATURE Loss
-        loss_feat = tf.math.reduce_sum(tf.pow((real-fake), 2))
-        return loss_feat
     
 # class for Adversarial loss function
 class AdversarialLoss(tf.keras.losses.Loss):
@@ -118,50 +101,6 @@ class AdversarialLoss(tf.keras.losses.Loss):
         logits_in = tf.cast(logits_in, labels_in.dtype)
         # Loss 4: FEATURE Loss
         return tf.math.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_in, labels=labels_in))
-    
-# class for Gradient Magnitude similarity loss function
-class GMSLoss(tf.keras.losses.Loss):
-    def __init__(self,
-             reduction=tf.keras.losses.Reduction.AUTO,
-             name='GMSLoss'):
-        super().__init__(reduction=reduction, name=name)
-
-    
-    def call(self, ori, recon):
-        c=0.0026
-        recon = tf.convert_to_tensor(recon)
-        ori = tf.cast(ori, recon.dtype)
-        
-        # tfa.image.median_filter2d
-        g_I = tf.image.sobel_edges(tfa.image.median_filter2d(ori, padding="REFLECT"))
-        g_Ir = tf.image.sobel_edges(tfa.image.median_filter2d(recon, padding="REFLECT"))
-        
-        # g_I = tf.reduce_mean(x, axis=1, keepdims=True)
-        # g_Ir = tf.reduce_mean(y, axis=1, keepdims=True)
-        
-        g_map = (2 * g_I * g_Ir + c) / (tf.math.square(g_I) + tf.math.square(g_Ir) + c)
-        
-        return tf.reduce_mean(1 - g_map)
-    
-# class for MS Gradient Magnitude similarity loss function
-class MSGMSLoss(tf.keras.losses.Loss):
-    def __init__(self,
-             reduction=tf.keras.losses.Reduction.AUTO,
-             name='MSGMSLoss'):
-        super().__init__(reduction=reduction, name=name)
-        self.gms_Loss = GMSLoss()
-
-    
-    def call(self, ori, recon):
-        
-        total_loss = self.gms_Loss(ori, recon)
-        
-        for _ in range(3):
-            ori = tf.nn.avg_pool2d(ori, ksize=2, strides=2, padding='SAME')
-            recon = tf.nn.avg_pool2d(recon, ksize=2, strides=2, padding='SAME')
-            total_loss += self.gms_Loss(ori, recon)
-
-        return total_loss / 4
 
 
 # In[ ]:
@@ -170,20 +109,15 @@ class MSGMSLoss(tf.keras.losses.Loss):
 # delcare all loss function that we will use
 
 # for adversarial loss
-# cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-cross_entropy = AdversarialLoss()
+cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+# cross_entropy = AdversarialLoss()
 # L1 Loss
 mae = tf.keras.losses.MeanAbsoluteError()
 # L2 Loss
 mse = tf.keras.losses.MeanSquaredError() 
 
-feat = FeatureLoss()
-
 # SSIM loss
 ssim = SSIMLoss()
-
-# GMS loss
-gms = GMSLoss()
 
 
 # In[ ]:
@@ -191,8 +125,6 @@ gms = GMSLoss()
 
 # function for  preprocessing data 
 def prep_stage(x, training=True):
-
-   
 
     if training:
         # x = tf.image.adjust_contrast(x, 0.5)
@@ -203,14 +135,14 @@ def prep_stage(x, training=True):
 
 def augment_dataset_batch_train(dataset_batch):
 
-#     flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
-#               num_parallel_calls=AUTOTUNE)
+    flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
+              num_parallel_calls=AUTOTUNE)
     
-#     flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
-#               num_parallel_calls=AUTOTUNE)
+    flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
+              num_parallel_calls=AUTOTUNE)
     
-#     dataset_batch = dataset_batch.concatenate(flip_up_down)
-#     dataset_batch = dataset_batch.concatenate(flip_left_right)
+    dataset_batch = dataset_batch.concatenate(flip_up_down)
+    dataset_batch = dataset_batch.concatenate(flip_left_right)
     
     
     return dataset_batch
@@ -575,24 +507,17 @@ class ResUnetGAN(tf.keras.models.Model):
             loss_ssim =  ssim(images, reconstructed_images)
         
             # Loss 4: FEATURE Loss
-            loss_feat = feat(feature_real, feature_fake)
+            loss_feat = mse(feature_real, feature_fake)
             
-            # Loss 5: GMS loss
-            loss_gms = gms(images, reconstructed_images)
-            
-            # Loss 6: MSGMS loss
-            # loss_msgms = msgms(images, reconstructed_images)
-
             gen_loss = tf.reduce_mean( 
                 (adv_loss * self.ADV_REG_RATE_LF) 
                 + (loss_rec * self.REC_REG_RATE_LF) 
                 + (loss_feat * self.FEAT_REG_RATE_LF) 
                 + (loss_ssim * self.SSIM_REG_RATE_LF) 
-                + (loss_gms * self.GMS_REG_RATE_LF) 
             )
             
             disc_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
-#             disc_loss = adv_loss
+
 
         gradients_of_discriminator = disc_tape.gradient(disc_loss, self.discriminator.trainable_variables)
         gradients_of_generator = gen_tape.gradient(gen_loss, self.generator.trainable_variables)
@@ -609,8 +534,7 @@ class ResUnetGAN(tf.keras.models.Model):
             "disc_loss": disc_loss,
             "adv_loss": adv_loss,
             "loss_rec": loss_rec,
-            # "loss_ssim": loss_ssim,
-            "loss_gms": loss_gms,
+            "loss_ssim": loss_ssim,
             "loss_feat": loss_feat
         }
 
@@ -680,27 +604,18 @@ class ResUnetGAN(tf.keras.models.Model):
             feature_fake, label_fake = self.discriminator(reconstructed_images, training=False)
 
             
-            # Loss 2: RECONSTRUCTION loss (L1)
+           
             loss_rec = mae(images, reconstructed_images)
         
-            # loss_feat = tf.reduce_mean( tf.keras.losses.mse(real, fake) )
-            loss_feat = feat(feature_real, feature_fake)
-
-            # Loss 3: SSIM Loss
-            # loss_ssim =  ssim(images, reconstructed_images)
+            loss_feat = mse(feature_real, feature_fake)
             
             score = (anomaly_weight * loss_rec) + ((1-anomaly_weight) * loss_feat)
-#             print(score, loss_rec, loss_feat)
-#             print(i, score.numpy(),labels.numpy()[0] )
-#          
+          
             scores_ano = np.append(scores_ano, score.numpy())
             real_label = np.append(real_label, labels.numpy()[0])
         
             rec_loss_list = np.append(rec_loss_list, loss_rec)
             feat_loss_list = np.append(feat_loss_list, loss_feat)
-            # ssim_loss_list = np.append(ssim_loss_list, loss_ssim)
-        
-#             print("reconstruction loss: ", loss_rec.numpy(), "feature losss: ", loss_feat.numpy(), "label: ", labels.numpy(), "score: ", score.numpy())
         
         
         ''' Scale scores vector between [0, 1]'''
@@ -716,7 +631,7 @@ class ResUnetGAN(tf.keras.models.Model):
         
         
         
-        scores_ano = (scores_ano > threshold).astype(int)
+        scores_ano = (scores_ano >= threshold).astype(int)
         cm = tf.math.confusion_matrix(labels=real_label, predictions=scores_ano).numpy()
         TP = cm[1][1]
         FP = cm[0][1]
