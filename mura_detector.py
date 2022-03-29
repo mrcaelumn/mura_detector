@@ -87,32 +87,19 @@ class SSIMLoss(tf.keras.losses.Loss):
 
         loss_ssim = tf.math.reduce_sum(1 - tf.image.ssim(ori, recon, 2.0))
         return loss_ssim
-    
-# class for Adversarial loss function
-class AdversarialLoss(tf.keras.losses.Loss):
-    def __init__(self,
-             reduction=tf.keras.losses.Reduction.AUTO,
-             name='AdversarialLoss'):
-        super().__init__(reduction=reduction, name=name)
-
-    
-    def call(self, logits_in, labels_in):
-        labels_in = tf.convert_to_tensor(labels_in)
-        logits_in = tf.cast(logits_in, labels_in.dtype)
-        # Loss 4: FEATURE Loss
-        return tf.math.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_in, labels=labels_in))
 
 
 # In[ ]:
 
 
-# delcare all loss function that we will use
+'''delcare all loss function that we will use'''
 
 # for adversarial loss
-cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-# cross_entropy = AdversarialLoss()
+cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+
 # L1 Loss
 mae = tf.keras.losses.MeanAbsoluteError()
+
 # L2 Loss
 mse = tf.keras.losses.MeanSquaredError() 
 
@@ -427,20 +414,15 @@ def build_discriminator(inputs):
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
         x = tf.keras.layers.Dropout(0.3)(x)
-
     
     feature = x
     
     x = tf.keras.layers.Flatten()(x)
     output = tf.keras.layers.Dense(1, activation="tanh")(x)
-#     output = tf.keras.layers.Dense(1, activation="tanh")(x)
-#     output = tf.keras.layers.Dense(1)(x)
-    
-    
+        
     model = tf.keras.models.Model(inputs, outputs = [feature, output])
     
     return model
-    # return x
 
 
 # In[ ]:
@@ -496,7 +478,9 @@ class ResUnetGAN(tf.keras.models.Model):
             # Loss 1: ADVERSARIAL loss
             real_loss = cross_entropy(label_real, tf.ones_like(label_real))
             fake_loss = cross_entropy(label_fake, tf.zeros_like(label_fake))
-            adv_loss = real_loss + fake_loss
+            disc_adv_loss = real_loss + fake_loss
+            
+            gen_adv_loss = cross_entropy(label_fake, tf.ones_like(label_real))
             
             # Loss 2: RECONSTRUCTION loss (L1)
             loss_rec = mae(images, reconstructed_images)
@@ -508,13 +492,13 @@ class ResUnetGAN(tf.keras.models.Model):
             loss_feat = mse(feature_real, feature_fake)
             
             gen_loss = tf.reduce_mean( 
-                (adv_loss * self.ADV_REG_RATE_LF) 
+                (gen_adv_loss * self.ADV_REG_RATE_LF) 
                 + (loss_rec * self.REC_REG_RATE_LF) 
                 + (loss_feat * self.FEAT_REG_RATE_LF) 
                 + (loss_ssim * self.SSIM_REG_RATE_LF) 
             )
             
-            disc_loss = tf.reduce_mean( (adv_loss * self.ADV_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
+            disc_loss = tf.reduce_mean( (disc_adv_loss * self.ADV_REG_RATE_LF) + (loss_feat * self.FEAT_REG_RATE_LF) )
 
 
         gradients_of_discriminator = disc_tape.gradient(disc_loss, self.discriminator.trainable_variables)
@@ -901,7 +885,7 @@ if __name__ == "__main__":
     mode = "20220210"
     batch_size = 32
     steps = 160
-    num_epochs = 1000
+    num_epochs = 150
     # name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)+
     name_model= f"{str(IMG_H)}_rgb_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
