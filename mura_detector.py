@@ -867,8 +867,8 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
             auc = model.testing(test_dateset, path_gmodal, path_dmodal, name_model, evaluate=True)
             if auc > auc_score:
                 
-                best_g_model_path = path_gmodal.replace(".h5", f"_best_{epoch}_{auc}.h5")
-                best_d_model_path = path_dmodal.replace(".h5", f"_best_{epoch}_{auc}.h5")
+                best_g_model_path = path_gmodal.replace(".h5", f"_best_{epoch}_{auc:.2f}.h5")
+                best_d_model_path = path_dmodal.replace(".h5", f"_best_{epoch}_{auc:.2f}.h5")
                 
                 model.saved_model(best_g_model_path, best_d_model_path)
                 auc_score = auc
