@@ -272,7 +272,7 @@ def roc(labels, scores, name_model):
     roc_auc = dict()
     # True/False Positive Rates.
     fpr, tpr, threshold = roc_curve(labels, scores)
-    print("threshold: ", threshold)
+    # print("threshold: ", threshold)
     roc_auc = auc(fpr, tpr)
     # get a threshod that perform very well.
     optimal_idx = np.argmax(tpr - fpr)
@@ -607,8 +607,9 @@ class ResUnetGAN(tf.keras.models.Model):
         auc_out, threshold = roc(real_label, scores_ano, name_model)
         if evaluate:
             return auc_out
-        print("auc: ", auc_out)
-        print("threshold: ", threshold)
+        
+        # print("auc: ", auc_out)
+        # print("threshold: ", threshold)
         
         
         
