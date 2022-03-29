@@ -110,13 +110,23 @@ ssim = SSIMLoss()
 # In[ ]:
 
 
+def enhance_image(image, beta=0.5):
+    image = tf.cast(image, tf.float64)
+    image = ((1 + beta) * image) + (-beta * tf.math.reduce_mean(image))
+    return image
+
+
+# In[ ]:
+
+
 # function for  preprocessing data 
 def prep_stage(x, training=True):
-
+    beta_contrast = 0.1
     if training:
-        # x = tf.image.adjust_contrast(x, 0.5)
+        x = enhance_image (x, beta_contrast)
         x = tf.image.resize(x, (IMG_H, IMG_W))
     else:
+        x = enhance_image (x, beta_contrast)
         x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
 
