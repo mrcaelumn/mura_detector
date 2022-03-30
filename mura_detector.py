@@ -140,11 +140,16 @@ def enhance_image(image, beta=0.5):
 def prep_stage(x, training=True):
     beta_contrast = 0.1
     if training:
-        x = enhance_image (x, beta_contrast)
-        x = tf.image.resize(x, (IMG_H, IMG_W))
+        x = tf.image.adjust_gamma(x, gamma=1, gain=1)
+        x = tfa.image.median_filter2d(x, filter_shape=(5, 5))
+        # x = enhance_image (x, beta_contrast)
+        
     else:
+        x = tf.image.adjust_gamma(x, gamma=1, gain=1)
+        x = tfa.image.median_filter2d(x, filter_shape=(5, 5))
         x = enhance_image (x, beta_contrast)
-        x = tf.image.resize(x, (IMG_H, IMG_W))
+    
+    x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
 
 def augment_dataset_batch_train(dataset_batch):
