@@ -88,6 +88,21 @@ class SSIMLoss(tf.keras.losses.Loss):
         loss_ssim = tf.math.reduce_sum(1 - tf.image.ssim(ori, recon, 2.0))
         return loss_ssim
 
+class MultiFeatureLoss(tf.keras.losses.Loss):
+    def __init__(self,
+             reduction=tf.keras.losses.Reduction.AUTO,
+             name='FeatureLoss'):
+        super().__init__(reduction=reduction, name=name)
+        self.mse_func = tf.keras.losses.MeanSquaredError() 
+
+    
+    def call(self, real, fake, weight=1):
+        result = 0.0
+        for r, f in zip(real, fake):
+            result = result + (weight * self.mse_func(r, f))
+        
+        return result
+
 
 # In[ ]:
 
@@ -102,6 +117,8 @@ mae = tf.keras.losses.MeanAbsoluteError()
 
 # L2 Loss
 mse = tf.keras.losses.MeanSquaredError() 
+
+multimse = MultiFeatureLoss()
 
 # SSIM loss
 ssim = SSIMLoss()
@@ -417,20 +434,30 @@ def build_generator_resnet50_unet(input_shape):
 
 # create discriminator model
 def build_discriminator(inputs):
-    f = [2**i for i in range(4)]
+    num_layers = 5
+    f = [2**i for i in range(num_layers)]
     x = inputs
-    for i in range(0, 4):
-        x = tf.keras.layers.SeparableConvolution2D(f[i] * IMG_H ,kernel_size= (3, 3), strides=(2, 2), padding='same', kernel_initializer=WEIGHT_INIT)(x)
-        x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.LeakyReLU(0.2)(x)
-        x = tf.keras.layers.Dropout(0.3)(x)
-    
-    feature = x
-    
-    x = tf.keras.layers.Flatten()(x)
-    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+    features = []
+    for i in range(0, num_layers):
         
-    model = tf.keras.models.Model(inputs, outputs = [feature, output])
+        if i == 0:
+            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.LeakyReLU(0.2)(x)
+        else:
+            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.BatchNormalization()(x)
+            x = tf.keras.layers.LeakyReLU(0.2)(x)
+            # x = tf.keras.layers.Dropout(0.3)(x)
+        
+        features.append(x)
+        
+    # feature = x
+    x = tf.keras.layers.Flatten()(x)
+    features.append(x)
+    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+
+    
+    model = tf.keras.models.Model(inputs, outputs = [features, output])
     
     return model
 
@@ -500,7 +527,8 @@ class ResUnetGAN(tf.keras.models.Model):
             loss_ssim =  ssim(images, reconstructed_images)
         
             # Loss 4: FEATURE Loss
-            loss_feat = mse(feature_real, feature_fake)
+            # loss_feat = mse(feature_real, feature_fake)
+            loss_feat = multimse(feature_real, feature_fake)
             
             gen_loss = tf.reduce_mean( 
                 (gen_adv_loss * self.ADV_REG_RATE_LF) 
@@ -596,7 +624,8 @@ class ResUnetGAN(tf.keras.models.Model):
            
             loss_rec = mae(images, reconstructed_images)
         
-            loss_feat = mse(feature_real, feature_fake)
+            # loss_feat = mse(feature_real, feature_fake)
+            loss_feat = multimse(feature_real, feature_fake)
             
             score = (anomaly_weight * loss_rec) + ((1-anomaly_weight) * loss_feat)
           
