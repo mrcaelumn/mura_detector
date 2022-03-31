@@ -47,6 +47,7 @@ IMG_C = 3  ## Change this to 1 for grayscale.
 
 LIMIT_TRAIN_IMAGES = 5000
 LIMIT_TEST_IMAGES = 200
+EVAL_INTERVAL = 10
 
 print("TensorFlow version: ", tf.__version__)
 assert version.parse(tf.__version__).release[0] >= 2,     "This notebook requires TensorFlow 2.0 or above."
@@ -140,13 +141,15 @@ def enhance_image(image, beta=0.5):
 def prep_stage(x, training=True):
     beta_contrast = 0.1
     if training:
-        x = tf.image.adjust_gamma(x, gamma=1, gain=1)
-        x = tfa.image.median_filter2d(x, filter_shape=(5, 5))
-        # x = enhance_image (x, beta_contrast)
+        # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
+        # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
+        # x = tf.image.sobel_edges(x)
+        x = enhance_image (x, beta_contrast)
         
     else:
-        x = tf.image.adjust_gamma(x, gamma=1, gain=1)
-        x = tfa.image.median_filter2d(x, filter_shape=(5, 5))
+        # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
+        # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
+        # x = tf.image.sobel_edges(x)
         x = enhance_image (x, beta_contrast)
     
     x = tf.image.resize(x, (IMG_H, IMG_W))
@@ -439,7 +442,7 @@ def build_generator_resnet50_unet(input_shape):
 
 # create discriminator model
 def build_discriminator(inputs):
-    num_layers = 5
+    num_layers = 4
     f = [2**i for i in range(num_layers)]
     x = inputs
     features = []
@@ -457,9 +460,11 @@ def build_discriminator(inputs):
         features.append(x)
         
     # feature = x
+    x = tf.keras.layers.SeparableConv2D(1, (3, 3), padding='valid', use_bias=False)(x)
+    features.append(x)
     x = tf.keras.layers.Flatten()(x)
     features.append(x)
-    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+    output = tf.keras.layers.Dense(1, activation="tanh")(x)
 
     
     model = tf.keras.models.Model(inputs, outputs = [features, output])
@@ -908,7 +913,7 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
             model.saved_model(path_gmodal, path_dmodal)
             print('saved for epoch:', epoch)
         
-        if epoch % 20 == 0 and epoch >= 20:
+        if epoch % EVAL_INTERVAL == 0 and epoch >= EVAL_INTERVAL:
             auc = model.testing(test_dateset, path_gmodal, path_dmodal, name_model, evaluate=True)
             print(
                     "model evaluated at epoch %d: with AUC=%f" % (epoch, auc)
