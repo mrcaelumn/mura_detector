@@ -950,11 +950,12 @@ if __name__ == "__main__":
     """ Set Hyperparameters """
     
     mode = "20220210"
+    colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
     num_epochs = 150
-    # name_model= str(IMG_H)+"_rgb_"+mode+"_"+str(num_epochs)+
-    name_model= f"{str(IMG_H)}_rgb_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
+    
+    name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
     resume_trainning = False
     lr = 1e-5
@@ -962,11 +963,11 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = "mura_data/RGB/mura_clean/train_data/normal/*.png"
-    test_data_path = "mura_data/RGB/mura_clean/test_data"
-    saved_model_path = "mura_data/RGB/saved_model/"
+    train_images_path = f"mura_data/{colour}/mura_clean/train_data/normal/*.png"
+    test_data_path = f"mura_data/{colour}/mura_clean/test_data"
+    saved_model_path = f"mura_data/{colour}/saved_model/"
     
-    logs_path = "mura_data/RGB/logs/"
+    logs_path = f"mura_data/{colour}/logs/"
     
     logs_file = logs_path + "logs_" + name_model + ".csv"
     
