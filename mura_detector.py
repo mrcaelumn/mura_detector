@@ -214,7 +214,7 @@ def read_data_with_labels(filepath, class_names):
 
 def load_image(image_path):
     img = tf.io.read_file(image_path)
-    img = tf.io.decode_png(img, channels=IMG_C)
+    img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img)
     img = tf.cast(img, tf.float32)
 #     rescailing image from 0,255 to -1,1
@@ -225,7 +225,7 @@ def load_image(image_path):
 def load_image_with_label(image_path, label):
 #     print(image_path)
     img = tf.io.read_file(image_path)
-    img = tf.io.decode_png(img, channels=IMG_C)
+    img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img, training=False)
     img = tf.cast(img, tf.float32)
     #     rescailing image from 0,255 to -1,1
@@ -717,7 +717,7 @@ class ResUnetGAN(tf.keras.models.Model):
             
             
             img = tf.io.read_file(v)
-            img = tf.io.decode_png(img, channels=IMG_C)
+            img = tf.io.decode_bmp(img, channels=IMG_C)
             
             name_subplot = mode+'_original_'+i
             axes.append( fig.add_subplot(rows, cols, 1) )
