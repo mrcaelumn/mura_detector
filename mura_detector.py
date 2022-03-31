@@ -463,7 +463,7 @@ def build_discriminator(inputs):
     x = tf.keras.layers.SeparableConv2D(1, (3, 3), padding='valid', use_bias=False)(x)
     features.append(x)
     x = tf.keras.layers.Flatten()(x)
-    features.append(x)
+    # features.append(x)
     output = tf.keras.layers.Dense(1, activation="tanh")(x)
 
     
@@ -958,7 +958,7 @@ if __name__ == "__main__":
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
     resume_trainning = False
-    lr = 1e-5
+    lr = 0.0001
     
     print("start: ", name_model)
     
