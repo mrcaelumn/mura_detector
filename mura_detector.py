@@ -909,7 +909,7 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
         # print(gen_loss_list)
         # print(disc_loss_list)
         
-        if epoch % 15 == 0 or epoch >= 15 or epoch == num_epochs:
+        if epoch % 10 == 0 or epoch >= 10 or epoch == num_epochs:
             model.saved_model(path_gmodal, path_dmodal)
             print('saved for epoch:', epoch)
         
