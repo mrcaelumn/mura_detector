@@ -132,6 +132,15 @@ def enhance_image(image, beta=0.5):
     image = tf.cast(image, tf.float64)
     image = ((1 + beta) * image) + (-beta * tf.math.reduce_mean(image))
     return image
+def custom_v3(img):
+    img = tf.cast(img, tf.float64)
+    img = tfio.experimental.color.rgb_to_bgr(img)
+    img = tf.image.adjust_contrast(img, 11.)
+    img = tf.image.adjust_hue(img, 11.)
+    img = tf.image.adjust_gamma(img)
+    img = tfa.image.median_filter2d(img)
+    return img
+    
 
 
 # In[ ]:
@@ -143,13 +152,14 @@ def prep_stage(x, training=True):
     if training:
         # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
         # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
-        # x = tf.image.sobel_edges(x)
+        # x = custom_v3(x)
         x = enhance_image (x, beta_contrast)
         
     else:
         # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
         # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
         # x = tf.image.sobel_edges(x)
+        # x = custom_v3(x)
         x = enhance_image (x, beta_contrast)
     
     x = tf.image.resize(x, (IMG_H, IMG_W))
