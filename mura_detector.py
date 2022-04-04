@@ -133,10 +133,8 @@ def enhance_image(image, beta=0.5):
     image = ((1 + beta) * image) + (-beta * tf.math.reduce_mean(image))
     return image
 def custom_v3(img):
-    img = tf.cast(img, tf.float64)
-    img = tfio.experimental.color.rgb_to_bgr(img)
-    img = tf.image.adjust_contrast(img, 11.)
-    img = tf.image.adjust_hue(img, 11.)
+
+    img = tf.image.adjust_hue(img, 1.)
     img = tf.image.adjust_gamma(img)
     img = tfa.image.median_filter2d(img)
     return img
@@ -458,25 +456,17 @@ def build_discriminator(inputs):
     features = []
     for i in range(0, num_layers):
         
-        if i == 0:
-            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
-            x = tf.keras.layers.LeakyReLU(0.2)(x)
-        else:
-            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
-            x = tf.keras.layers.BatchNormalization()(x)
-            x = tf.keras.layers.LeakyReLU(0.2)(x)
-            # x = tf.keras.layers.Dropout(0.3)(x)
+        
+        x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+        x = tf.keras.layers.BatchNormalization()(x)
+        x = tf.keras.layers.LeakyReLU(0.2)(x)
+        x = tf.keras.layers.Dropout(0.3)(x)
         
         features.append(x)
         
-    # feature = x
-    x = tf.keras.layers.SeparableConv2D(1, (3, 3), padding='valid', use_bias=False)(x)
-    features.append(x)
+    
     x = tf.keras.layers.Flatten()(x)
-    # features.append(x)
-    # output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
-    output = tf.keras.layers.Activation('sigmoid')(x)
-
+    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
     
     model = tf.keras.models.Model(inputs, outputs = [features, output])
     
@@ -1014,9 +1004,7 @@ if __name__ == "__main__":
     
     """ run trainning process """
     train_images = glob(train_images_path)
-    # size_of_dataset = len(list(train_images_dataset)) * batch_size
-    # batch_size = int(len(train_images)/steps)
-    # print("batch_size: ", batch_size)
+
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
