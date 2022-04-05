@@ -146,19 +146,19 @@ def custom_v3(img):
 
 # function for  preprocessing data 
 def prep_stage(x, training=True):
-    beta_contrast = 0.1
-    if training:
-        # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
-        # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
-        # x = custom_v3(x)
-        x = enhance_image (x, beta_contrast)
+    # beta_contrast = 0.1
+#     if training:
+#         # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
+#         # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
+#         # x = custom_v3(x)
+#         x = enhance_image (x, beta_contrast)
         
-    else:
-        # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
-        # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
-        # x = tf.image.sobel_edges(x)
-        # x = custom_v3(x)
-        x = enhance_image (x, beta_contrast)
+#     else:
+#         # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
+#         # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
+#         # x = tf.image.sobel_edges(x)
+#         # x = custom_v3(x)
+#         x = enhance_image (x, beta_contrast)
     
     x = tf.image.resize(x, (IMG_H, IMG_W))
     return x
@@ -205,17 +205,16 @@ def read_data_with_labels(filepath, class_names):
         for img in tqdm(os.listdir(path)):  
             if ".DS_Store" != img:
                 filpath = os.path.join(path,img)
-#                 print(filpath, class_num)
                 
                 path_list.append(filpath)
                 class_list.append(class_num)
-                # image_label_list.append({filpath:class_num})
         
-        path_list, class_list = shuffle(path_list, class_list, random_state=random.randint(123, 10000))
-        image_list = image_list + path_list[:LIMIT_TEST_IMAGES]
-        label_list = label_list + class_list[:LIMIT_TEST_IMAGES]
-  
-    # print(image_list, label_list)
+        n_samples = None
+        if LIMIT_TEST_IMAGES != "MAX":
+            n_samples = LIMIT_TEST_IMAGES
+        path_list, class_list = shuffle(path_list, class_list, n_samples=n_samples ,random_state=random.randint(123, 10000))
+        image_list = image_list + path_list
+        label_list = label_list + class_list
     
     return image_list, label_list
 
@@ -250,7 +249,7 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
         
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
     # tf.size(dataset)
-    dataset = dataset.shuffle(buffer_size=10240)
+    dataset = dataset.shuffle(buffer_size=512, seed=random.randint(123, 10000))
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
     dataset = dataset.batch(batch_size)
@@ -262,7 +261,7 @@ def tf_dataset_labels(images_path, batch_size, class_names=None):
     
     filenames, labels = read_data_with_labels(images_path, class_names)
     dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
-    dataset = dataset.shuffle(buffer_size=10240)
+    dataset = dataset.shuffle(buffer_size=512, seed=random.randint(123, 10000))
     
     dataset = dataset.map(load_image_with_label, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
@@ -389,11 +388,11 @@ def plot_confusion_matrix(cm, classes,
 
 
 def conv_block(input, num_filters):
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(input)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(4,4), padding="same")(input)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(x)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(4,4), padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
@@ -414,7 +413,7 @@ def build_generator_resnet50_unet(input_shape):
     # print(inputs)
     # print("pretained start")
     """ Pre-trained ResNet50 Model """
-    resnet50 = tf.keras.applications.ResNet50(include_top=False, weights="imagenet", input_tensor=input_shape)
+    resnet50 = tf.keras.applications.ResNet50(include_top=True, weights="imagenet", input_tensor=input_shape)
 
     """ Encoder """
     s1 = resnet50.get_layer("input_1").output           ## (256 x 256)
@@ -437,7 +436,7 @@ def build_generator_resnet50_unet(input_shape):
     
     """ Output """
 #     outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="sigmoid")(d4)
-    outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="tanh")(d4)
+    outputs = tf.keras.layers.Conv2D(IMG_C, 1, padding="same", activation="tanh")(d4)
 #     outputs = tf.keras.layers.Conv2D(3, 1, padding="same")(d5)
 
     model = tf.keras.models.Model(inputs, outputs)
@@ -457,7 +456,7 @@ def build_discriminator(inputs):
     for i in range(0, num_layers):
         
         
-        x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+        x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.LeakyReLU(0.2)(x)
         x = tf.keras.layers.Dropout(0.3)(x)
@@ -611,7 +610,7 @@ class ResUnetGAN(tf.keras.models.Model):
             
     def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
 
-        anomaly_weight = 0.1
+        anomaly_weight = 0.9
         
         scores_ano = []
         real_label = []
@@ -954,7 +953,7 @@ if __name__ == "__main__":
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
-    num_epochs = 150
+    num_epochs = 500
     
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
@@ -1004,7 +1003,6 @@ if __name__ == "__main__":
     
     """ run trainning process """
     train_images = glob(train_images_path)
-
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
