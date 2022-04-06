@@ -86,7 +86,7 @@ class SSIMLoss(tf.keras.losses.Loss):
         recon = tf.convert_to_tensor(recon)
         ori = tf.cast(ori, recon.dtype)
 
-        loss_ssim = tf.math.reduce_sum(1 - tf.image.ssim(ori, recon, 2.0))
+        loss_ssim = tf.reduce_mean(1 - tf.image.ssim(ori, recon, max_val=IMG_W, filter_size=7, k1=0.01 ** 2, k2=0.03 ** 2))
         return loss_ssim
 
 class MultiFeatureLoss(tf.keras.losses.Loss):
@@ -610,7 +610,7 @@ class ResUnetGAN(tf.keras.models.Model):
             
     def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
 
-        anomaly_weight = 0.9
+        anomaly_weight = 0.5
         
         scores_ano = []
         real_label = []
