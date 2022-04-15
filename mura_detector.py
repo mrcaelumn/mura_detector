@@ -41,6 +41,11 @@ from sklearn.utils import shuffle
 from matplotlib import pyplot as plt
 import matplotlib.patches as mpatches
 
+# new import
+from tensorflow.keras.utils import Progbar
+import time 
+
+ORI_SIZE = (271, 481)
 IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
@@ -138,7 +143,21 @@ def custom_v3(img):
     img = tf.image.adjust_gamma(img)
     img = tfa.image.median_filter2d(img)
     return img
+
+def crop_left_and_right(img, width=256, height=256):
+    # img_shape = tf.shape(img)
+    img_left = tf.image.crop_to_bounding_box(img, 0, 0, height, width)
+    img_right = tf.image.crop_to_bounding_box(img, ORI_SIZE[0] - height, ORI_SIZE[1] - width, height, width)
     
+    return img_left, img_right
+
+def crop_left_and_right_select_one(img, width=256, height=256):
+    # img_shape = tf.shape(img)
+    img_left = tf.image.crop_to_bounding_box(img, 0, 0, height, width)
+    img_right = tf.image.crop_to_bounding_box(img, ORI_SIZE[0] - height, ORI_SIZE[1] - width, height, width)
+    if tf.reduce_mean(img_left) > tf.reduce_mean(img_right):
+        return img_left
+    return img_right
 
 
 # In[ ]:
@@ -146,21 +165,27 @@ def custom_v3(img):
 
 # function for  preprocessing data 
 def prep_stage(x, training=True):
-    # beta_contrast = 0.1
-#     if training:
-#         # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
-#         # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
-#         # x = custom_v3(x)
-#         x = enhance_image (x, beta_contrast)
+    beta_contrast = 0.1
+    if training:
         
-#     else:
-#         # x = tf.image.adjust_gamma(x, gamma=1, gain=1)
-#         # x = tfa.image.median_filter2d(x, filter_shape=(3, 3))
-#         # x = tf.image.sobel_edges(x)
-#         # x = custom_v3(x)
-#         x = enhance_image (x, beta_contrast)
+        x = enhance_image (x, beta_contrast)
+        # x = custom_v3(x)
+        
+    else:
+        x = enhance_image (x, beta_contrast)
+        # x = custom_v3(x)
+    
+    return x
+
+def post_stage(x):
     
     x = tf.image.resize(x, (IMG_H, IMG_W))
+    # x = tf.image.random_crop(x, (IMG_H, IMG_W))
+    # normalize to the range -1,1
+    x = tf.cast(x, tf.float32)
+    x = (x - 127.5) / 127.5
+    # normalize to the range 0-1
+    # img /= 255.0
     return x
 
 def augment_dataset_batch_train(dataset_batch):
@@ -194,7 +219,6 @@ def augment_dataset_batch_test(dataset_batch):
 
 
 def read_data_with_labels(filepath, class_names):
-   
     image_list = []
     label_list = []
     for class_n in class_names:  # do dogs and cats
@@ -207,6 +231,7 @@ def read_data_with_labels(filepath, class_names):
                 filpath = os.path.join(path,img)
                 
                 path_list.append(filpath)
+                
                 class_list.append(class_num)
         
         n_samples = None
@@ -218,36 +243,50 @@ def read_data_with_labels(filepath, class_names):
     
     return image_list, label_list
 
+# new function -> create image_list and filename_list
+def read_data_with_filenames(filepath):
+   
+    image_list = []
+    filename_list = []
+    for img in os.listdir(filepath):  
+        if ".DS_Store" != img:
+            image_list.append(os.path.join(filepath,img))
+            filename_list.append(img)
+        
+    image_list, filename_list = shuffle(image_list, filename_list, random_state=random.randint(123, 10000))
+    
+    # return image_list[:LIMIT_TRAIN_IMAGES], filename_list[:LIMIT_TRAIN_IMAGES]
+    return image_list, filename_list
+
+
+
 
 def load_image(image_path):
     img = tf.io.read_file(image_path)
-    img = tf.io.decode_bmp(img, channels=IMG_C)
+    img = tf.io.decode_png(img, channels=IMG_C)
     img = prep_stage(img)
-    img = tf.cast(img, tf.float32)
-#     rescailing image from 0,255 to -1,1
-    img = (img - 127.5) / 127.5
+    img = crop_left_and_right_select_one(img)
+    img = post_stage(img)
     
     return img
 
 def load_image_with_label(image_path, label):
 #     print(image_path)
     img = tf.io.read_file(image_path)
-    img = tf.io.decode_bmp(img, channels=IMG_C)
+    img = tf.io.decode_png(img, channels=IMG_C)
     img = prep_stage(img, training=False)
-    img = tf.cast(img, tf.float32)
-    #     rescailing image from 0,255 to -1,1
-    img = (img - 127.5) / 127.5
-    # img /= 255.0
+    l_img, r_img = crop_left_and_right(img)
+    l_img = post_stage(l_img)
+    r_img = post_stage(r_img)
     
-    return img, label
+    return l_img, r_img, label
 
-
+# new -> create dataset with filename
 def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     
-    if LIMIT_TRAIN_IMAGES != "MAX":
-        images_path = images_path[:LIMIT_TRAIN_IMAGES]
-        
-    dataset = tf.data.Dataset.from_tensor_slices(images_path)
+    filenames, filename_labels = read_data_with_filenames(images_path)
+    dataset = tf.data.Dataset.from_tensor_slices((filenames, filename_labels))
+    
     # tf.size(dataset)
     dataset = dataset.shuffle(buffer_size=512, seed=random.randint(123, 10000))
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -260,6 +299,7 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
 def tf_dataset_labels(images_path, batch_size, class_names=None):
     
     filenames, labels = read_data_with_labels(images_path, class_names)
+   
     dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
     dataset = dataset.shuffle(buffer_size=512, seed=random.randint(123, 10000))
     
@@ -514,14 +554,12 @@ class ResUnetGAN(tf.keras.models.Model):
 # This annotation causes the function to be "compiled".
     @tf.function
     def train_step(self, images):
-
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
             # tf.print("Images: ", images)
             reconstructed_images = self.generator(images, training=True)
             feature_real, label_real = self.discriminator(images, training=True)
             # print(generated_images.shape)
             feature_fake, label_fake = self.discriminator(reconstructed_images, training=True)
-
             # Loss 1: ADVERSARIAL loss
             
             real_loss = cross_entropy(label_real, tf.ones_like(label_real))
@@ -607,10 +645,25 @@ class ResUnetGAN(tf.keras.models.Model):
             f_object.close()
             return None, None, None, None
             
-            
-    def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
-
+    def calculate_a_score(self, images):
+        
         anomaly_weight = 0.5
+        
+        reconstructed_images = self.generator(images, training=False)
+        # images = grayscale_converter(images)
+        feature_real, label_real  = self.discriminator(images, training=False)
+        # print(generated_images.shape)
+        feature_fake, label_fake = self.discriminator(reconstructed_images, training=False)
+
+        # Loss 2: RECONSTRUCTION loss (L1)
+        loss_rec = mae(images, reconstructed_images)
+
+        loss_feat = multimse(feature_real, feature_fake)
+        # print("loss_rec:", loss_rec, "loss_feat:", loss_feat)
+        score = loss_rec + (anomaly_weight * loss_feat)
+        return score, loss_rec, loss_feat
+    
+    def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
         
         scores_ano = []
         real_label = []
@@ -622,24 +675,23 @@ class ResUnetGAN(tf.keras.models.Model):
         self.discriminator.load_weights(d_filepath)
         
         
-        for images, labels in test_dateset:
+        for left_images, right_images, labels in test_dateset:
             i += 1
             
-            reconstructed_images = self.generator(images, training=False)
-            feature_real, label_real  = self.discriminator(images, training=False)
-            # print(generated_images.shape)
-            feature_fake, label_fake = self.discriminator(reconstructed_images, training=False)
+            loss_rec, loss_feat = 0.0, 0.0
+            l_score, l_rec_loss, l_feat_loss = self.calculate_a_score(left_images)
+            r_score, r_rec_loss, r_feat_loss = self.calculate_a_score(right_images)
+            
+            score = max(l_score.numpy(), r_score.numpy())
+            # print(score , l_score.numpy(), r_score.numpy())
+            loss_rec = r_rec_loss
+            loss_feat = r_feat_loss
 
-            
-           
-            loss_rec = mae(images, reconstructed_images)
-        
-            # loss_feat = mse(feature_real, feature_fake)
-            loss_feat = multimse(feature_real, feature_fake)
-            
-            score = (anomaly_weight * loss_rec) + ((1-anomaly_weight) * loss_feat)
-          
-            scores_ano = np.append(scores_ano, score.numpy())
+            if score == l_score.numpy():
+                loss_rec = l_rec_loss
+                loss_feat = l_feat_loss
+                
+            scores_ano = np.append(scores_ano, score)
             real_label = np.append(real_label, labels.numpy()[0])
         
             rec_loss_list = np.append(rec_loss_list, loss_rec)
@@ -650,15 +702,15 @@ class ResUnetGAN(tf.keras.models.Model):
         scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
         label_axis = ["recon_loss", "scores_anomaly"]
         plot_loss_with_rlabel(rec_loss_list, scores_ano, real_label, name_model, "anomaly_score", label_axis)
-#         print("scores_ano: ", scores_ano)
-#         print("real_label: ", real_label)
+        # print("scores_ano: ", scores_ano)
+        # print("real_label: ", real_label)
 #         scores_ano = (scores_ano > threshold).astype(int)
         auc_out, threshold = roc(real_label, scores_ano, name_model)
         if evaluate:
             return auc_out
         
-        # print("auc: ", auc_out)
-        # print("threshold: ", threshold)
+        print("auc: ", auc_out)
+        print("threshold: ", threshold)
         
         
         
@@ -870,13 +922,14 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
 # In[ ]:
 
 
-def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=False):
+# new -> customize original model.fit(), add new params save_batches_img_path, save_batches_loss_path
+def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, save_batches_img_path, save_batches_loss_path, resume=False, ):
     init_epoch = 0
     
     epochs_list = []
     gen_loss_list = []
     disc_loss_list = []
-    auc_score = 0.0
+    auc_score = 0.6
     # callbacks = set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal)
     # if resume:
     #     print("resuming trainning. ", name_model)
@@ -901,13 +954,15 @@ def run_trainning(model, train_dataset,num_epochs, path_gmodal, path_dmodal, log
             # steps_per_epoch=steps
         )
         
-        epochs_list.append(epoch)
-        gen_loss_list.append(result.history["gen_loss"][0])
-        disc_loss_list.append(result.history["disc_loss"][0])
+        if result["gen_loss"].numpy() <= 1000:
+            epochs_list.append(epoch)
+            gen_loss_list.append(result["gen_loss"])
+            disc_loss_list.append(result["disc_loss"])
+            
         
-        # print(epochs_list)
-        # print(gen_loss_list)
-        # print(disc_loss_list)
+        # epochs_list.append(epoch)
+        # gen_loss_list.append(result["gen_loss"])
+        # disc_loss_list.append(result["disc_loss"])
         
         if epoch % 10 == 0 or epoch >= 10 or epoch == num_epochs:
             model.saved_model(path_gmodal, path_dmodal)
@@ -949,7 +1004,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "20220210"
+    mode = "contrast_enchanment_20220210"
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
@@ -988,7 +1043,6 @@ if __name__ == "__main__":
     # set input 
     inputs = tf.keras.layers.Input(input_shape, name="input_1")
     
-
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     g_model = build_generator_resnet50_unet(inputs)
@@ -1002,10 +1056,11 @@ if __name__ == "__main__":
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
     """ run trainning process """
-    train_images = glob(train_images_path)
-    train_images_dataset = load_image_train(train_images, batch_size)
-    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps,resume=resume_trainning)
+#     train_images = glob(train_images_path)
+#     train_images_dataset = load_image_train(train_images, batch_size)
+#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    
+#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, save_batches_img_path, save_batches_loss_path, resume=resume_trainning)
     
     """ run testing """
     class_names = ["normal", "defect"] # normal = 0, defect = 1
