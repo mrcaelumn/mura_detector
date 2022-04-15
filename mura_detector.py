@@ -284,8 +284,9 @@ def load_image_with_label(image_path, label):
 # new -> create dataset with filename
 def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     
-    filenames, filename_labels = read_data_with_filenames(images_path)
-    dataset = tf.data.Dataset.from_tensor_slices((filenames, filename_labels))
+    if LIMIT_TRAIN_IMAGES != "MAX":
+        images_path = images_path[:LIMIT_TRAIN_IMAGES]
+    dataset = tf.data.Dataset.from_tensor_slices(images_path)
     
     # tf.size(dataset)
     dataset = dataset.shuffle(buffer_size=512, seed=random.randint(123, 10000))
@@ -428,18 +429,18 @@ def plot_confusion_matrix(cm, classes,
 
 
 def conv_block(input, num_filters):
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(4,4), padding="same")(input)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(input)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(4,4), padding="same")(x)
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.LeakyReLU(0.2)(x)
 
     return x
 
 def decoder_block(input, skip_features, num_filters):
-    x = tf.keras.layers.Conv2DTranspose(num_filters, (3, 3), strides=2, padding="same")(input)
+    x = tf.keras.layers.Conv2DTranspose(num_filters, (2, 2), strides=2, padding="same")(input)
     x = tf.keras.layers.Concatenate()([x, skip_features])
     x = conv_block(x, num_filters)
     return x
@@ -494,17 +495,22 @@ def build_discriminator(inputs):
     x = inputs
     features = []
     for i in range(0, num_layers):
+        if i == 0:
+            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.BatchNormalization()(x)
         
-        
-        x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
-        x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.LeakyReLU(0.2)(x)
-        x = tf.keras.layers.Dropout(0.3)(x)
-        
+        else:
+            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.BatchNormalization()(x)
+            x = tf.keras.layers.LeakyReLU(0.2)(x)
+            # x = tf.keras.layers.Dropout(0.3)(x)      
         features.append(x)
+        
+        
         
     
     x = tf.keras.layers.Flatten()(x)
+    features.append(x)
     output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
     
     model = tf.keras.models.Model(inputs, outputs = [features, output])
@@ -922,8 +928,7 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
 # In[ ]:
 
 
-# new -> customize original model.fit(), add new params save_batches_img_path, save_batches_loss_path
-def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, save_batches_img_path, save_batches_loss_path, resume=False, ):
+def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=False, ):
     init_epoch = 0
     
     epochs_list = []
@@ -1056,11 +1061,11 @@ if __name__ == "__main__":
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
     """ run trainning process """
-#     train_images = glob(train_images_path)
-#     train_images_dataset = load_image_train(train_images, batch_size)
-#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, save_batches_img_path, save_batches_loss_path, resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=resume_trainning)
     
     """ run testing """
     class_names = ["normal", "defect"] # normal = 0, defect = 1
