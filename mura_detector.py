@@ -959,15 +959,15 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
             # steps_per_epoch=steps
         )
         
-        if result["gen_loss"].numpy() <= 1000:
-            epochs_list.append(epoch)
-            gen_loss_list.append(result["gen_loss"])
-            disc_loss_list.append(result["disc_loss"])
+        # if result["gen_loss"].numpy() <= 1000:
+        #     epochs_list.append(epoch)
+        #     gen_loss_list.append(result["gen_loss"])
+        #     disc_loss_list.append(result["disc_loss"])
             
         
-        # epochs_list.append(epoch)
-        # gen_loss_list.append(result["gen_loss"])
-        # disc_loss_list.append(result["disc_loss"])
+        epochs_list.append(epoch)
+        gen_loss_list.append(result.history["gen_loss"][0])
+        disc_loss_list.append(result.history["disc_loss"][0])
         
         if epoch % 10 == 0 or epoch >= 10 or epoch == num_epochs:
             model.saved_model(path_gmodal, path_dmodal)
