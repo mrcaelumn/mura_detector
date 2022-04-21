@@ -326,7 +326,7 @@ def read_data_with_filenames(filepath):
 
 
 def load_image(image_path):
-    img = tf.io.read_file(image)
+    img = tf.io.read_file(image_path)
     img = tf.io.decode_png(img, channels=IMG_C)
     # img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img, True)
@@ -337,7 +337,7 @@ def load_image(image_path):
     return img
 
 def load_image_with_label(image_path, label):
-    img = tf.io.read_file(image)
+    img = tf.io.read_file(image_path)
     img = tf.io.decode_png(img, channels=IMG_C)
     # img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img, False)
