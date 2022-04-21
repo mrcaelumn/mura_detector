@@ -49,6 +49,8 @@ ORI_SIZE = (271, 481)
 IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
+winSize = (256, 256)
+stSize = 20
 
 LIMIT_TRAIN_IMAGES = 5000
 LIMIT_TEST_IMAGES = 200
@@ -144,20 +146,82 @@ def custom_v3(img):
     img = tfa.image.median_filter2d(img)
     return img
 
-def crop_left_and_right(img, width=256, height=256):
+def crop_left_and_right(img, width=256, height=271):
     # img_shape = tf.shape(img)
     img_left = tf.image.crop_to_bounding_box(img, 0, 0, height, width)
     img_right = tf.image.crop_to_bounding_box(img, ORI_SIZE[0] - height, ORI_SIZE[1] - width, height, width)
     
     return img_left, img_right
 
-def crop_left_and_right_select_one(img, width=256, height=256):
+def crop_left_and_right_select_one(img, width=256, height=271):
     # img_shape = tf.shape(img)
     img_left = tf.image.crop_to_bounding_box(img, 0, 0, height, width)
     img_right = tf.image.crop_to_bounding_box(img, ORI_SIZE[0] - height, ORI_SIZE[1] - width, height, width)
-    if tf.reduce_mean(img_left) > tf.reduce_mean(img_right):
+    if tf.math.reduce_std(img_left) < tf.math.reduce_std(img_right):
         return img_left
     return img_right
+
+def sliding_crop_and_select_one(img, stepSize=stSize, windowSize=winSize):
+    current_std = 0
+    current_image = None
+    y_end_crop, x_end_crop = False, False
+    for y in range(0, ORI_SIZE[0], stepSize):
+        
+        y_end_crop = False
+        
+        for x in range(0, ORI_SIZE[1], stepSize):
+            
+            x_end_crop = False
+            
+            crop_y = y
+            if (y + windowSize[0]) > ORI_SIZE[0]:
+                crop_y =  ORI_SIZE[0] - windowSize[0]
+                y_end_crop = True
+            
+            crop_x = x
+            if (x + windowSize[1]) > ORI_SIZE[1]:
+                crop_x = ORI_SIZE[1] - windowSize[1]
+                x_end_crop = True
+                
+            image = tf.image.crop_to_bounding_box(img, crop_y, crop_x, windowSize[0], windowSize[1])                
+            std_image = tf.math.reduce_std(tf.cast(image, dtype=tf.float32))
+          
+            if current_std == 0 or std_image < current_std :
+                current_std = std_image
+                current_image = image
+                
+            if x_end_crop:
+                break
+                
+        if x_end_crop and y_end_crop:
+            break
+            
+    return current_image
+
+def sliding_crop(img, stepSize=stSize, windowSize=winSize):
+    current_std = 0
+    current_image = []
+    y_end_crop, x_end_crop = False, False
+    for y in range(0, ORI_SIZE[0], stepSize):
+        y_end_crop = False
+        for x in range(0, ORI_SIZE[1], stepSize):
+            x_end_crop = False
+            crop_y = y
+            if (y + windowSize[0]) > ORI_SIZE[0]:
+                crop_y =  ORI_SIZE[0] - windowSize[0]
+            
+            crop_x = x
+            if (x + windowSize[1]) > ORI_SIZE[1]:
+                crop_x = ORI_SIZE[1] - windowSize[1]
+            
+            # print(crop_y, crop_x, windowSize)
+            image = tf.image.crop_to_bounding_box(img, crop_y, crop_x, windowSize[0], windowSize[1])
+            current_image.append(image)
+            if x_end_crop:
+                break
+        if x_end_crop and y_end_crop:
+            break
+    return current_image
 
 
 # In[ ]:
@@ -262,34 +326,44 @@ def read_data_with_filenames(filepath):
 
 
 def load_image(image_path):
-    img = tf.io.read_file(image_path)
+    img = tf.io.read_file(image)
     img = tf.io.decode_png(img, channels=IMG_C)
-    img = prep_stage(img)
-    img = crop_left_and_right_select_one(img)
+    # img = tf.io.decode_bmp(img, channels=IMG_C)
+    img = prep_stage(img, True)
+    # img = crop_left_and_right_select_one(img)
+    img = sliding_crop_and_select_one(img, )
     img = post_stage(img)
-    
+
     return img
 
 def load_image_with_label(image_path, label):
-#     print(image_path)
-    img = tf.io.read_file(image_path)
+    img = tf.io.read_file(image)
     img = tf.io.decode_png(img, channels=IMG_C)
-    img = prep_stage(img, training=False)
-    l_img, r_img = crop_left_and_right(img)
-    l_img = post_stage(l_img)
-    r_img = post_stage(r_img)
+    # img = tf.io.decode_bmp(img, channels=IMG_C)
+    img = prep_stage(img, False)
+    # l_img, r_img = crop_left_and_right(img)
+    # l_img = post_stage(l_img)
+    # r_img = post_stage(r_img)
     
-    return l_img, r_img, label
+    img_list = sliding_crop(img)
+    img = [post_stage(a) for a in img_list]
+    
+    # img = post_stage(img)
+    # return l_img, r_img, label
+    return img, label
 
 # new -> create dataset with filename
 def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     
+    images_path = shuffle(images_path, random_state=random.randint(123, 10000))
+    
     if LIMIT_TRAIN_IMAGES != "MAX":
         images_path = images_path[:LIMIT_TRAIN_IMAGES]
+        
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
     
     # tf.size(dataset)
-    dataset = dataset.shuffle(buffer_size=512, seed=random.randint(123, 10000))
+    # dataset = dataset.shuffle(buffer_size=512, seed=random.randint(123, 10000))
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
     dataset = dataset.batch(batch_size)
@@ -653,7 +727,7 @@ class ResUnetGAN(tf.keras.models.Model):
             
     def calculate_a_score(self, images):
         
-        anomaly_weight = 0.5
+        anomaly_weight = 0.7
         
         reconstructed_images = self.generator(images, training=False)
         # images = grayscale_converter(images)
@@ -676,26 +750,37 @@ class ResUnetGAN(tf.keras.models.Model):
         rec_loss_list = []
         feat_loss_list = []
         # ssim_loss_list = []
-        i = 0
         self.generator.load_weights(g_filepath)
         self.discriminator.load_weights(d_filepath)
         
         
-        for left_images, right_images, labels in test_dateset:
-            i += 1
-            
+        # for left_images, right_images, labels in test_dateset:
+        for images, labels in test_dateset:
             loss_rec, loss_feat = 0.0, 0.0
-            l_score, l_rec_loss, l_feat_loss = self.calculate_a_score(left_images)
-            r_score, r_rec_loss, r_feat_loss = self.calculate_a_score(right_images)
-            
-            score = max(l_score.numpy(), r_score.numpy())
-            # print(score , l_score.numpy(), r_score.numpy())
-            loss_rec = r_rec_loss
-            loss_feat = r_feat_loss
+            score = 0
 
-            if score == l_score.numpy():
-                loss_rec = l_rec_loss
-                loss_feat = l_feat_loss
+
+            '''for left & right'''
+            # l_score, loss_rec, loss_feat = self.calculate_a_score(left_images)
+            # r_score, r_rec_loss, r_feat_loss = self.calculate_a_score(right_images)
+            # score = max(l_score.numpy(), r_score.numpy())
+            # if score == r_score.numpy():
+            #     loss_rec = r_rec_loss
+            #     loss_feat = r_feat_loss
+
+
+            '''for normal'''
+            # temp_score, loss_rec, loss_feat = self.calculate_a_score(images)
+            # score = temp_score.numpy()
+
+
+            '''for sliding images'''
+            for image in images:
+                r_score, r_rec_loss, r_feat_loss = self.calculate_a_score(image)
+                if r_score.numpy() > score or score == 0:
+                    score = r_score.numpy()
+                    loss_rec = r_rec_loss
+                    loss_feat = r_feat_loss
                 
             scores_ano = np.append(scores_ano, score)
             real_label = np.append(real_label, labels.numpy()[0])
