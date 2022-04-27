@@ -1106,8 +1106,8 @@ if __name__ == "__main__":
     
     logs_file = logs_path + "logs_" + name_model + ".csv"
     
-    path_gmodal = saved_model_path + name_model + "_g_model" + "_best_280_0.77.h5"
-    path_dmodal = saved_model_path +  name_model + "_d_model" + "_best_280_0.77.h5"
+    path_gmodal = saved_model_path + name_model + "_g_model" + ".h5"
+    path_dmodal = saved_model_path +  name_model + "_d_model" + ".h5"
     
     """
     Create a MirroredStrategy object. 
@@ -1136,11 +1136,11 @@ if __name__ == "__main__":
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
     """ run trainning process """
-#     train_images = glob(train_images_path)
-#     train_images_dataset = load_image_train(train_images, batch_size)
-#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+    train_images = glob(train_images_path)
+    train_images_dataset = load_image_train(train_images, batch_size)
+    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     
-#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=resume_trainning)
     
     """ run testing """
     class_names = ["normal", "defect"] # normal = 0, defect = 1
