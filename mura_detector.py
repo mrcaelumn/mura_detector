@@ -151,7 +151,7 @@ def crop_left_and_right(img, width=256, height=271):
     img_left = tf.image.crop_to_bounding_box(img, 0, 0, height, width)
     img_right = tf.image.crop_to_bounding_box(img, ORI_SIZE[0] - height, ORI_SIZE[1] - width, height, width)
     
-    return img_left, img_right
+    return [img_left, img_right]
 
 def crop_left_and_right_select_one(img, width=256, height=271):
     # img_shape = tf.shape(img)
@@ -341,10 +341,8 @@ def load_image_with_label(image_path, label):
     img = tf.io.decode_png(img, channels=IMG_C)
     # img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img, False)
-    # l_img, r_img = crop_left_and_right(img)
-    # l_img = post_stage(l_img)
-    # r_img = post_stage(r_img)
-    
+    # img = crop_left_and_right(img)
+
     img_list = sliding_crop(img)
     img = [post_stage(a) for a in img_list]
     
@@ -502,21 +500,18 @@ def plot_confusion_matrix(cm, classes,
 # In[ ]:
 
 
-def conv_block(input, num_filters):
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(input)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.LeakyReLU(0.2)(x)
-
-    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(3,3), padding="same")(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.LeakyReLU(0.2)(x)
-
+def conv_block(input, num_filters, bn=True):
+    x = tf.keras.layers.Conv2D(num_filters, kernel_size=(4,4), padding="same")(input)
+    if bn:
+        x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.LeakyReLU()(x)
     return x
 
-def decoder_block(input, skip_features, num_filters):
+def decoder_block(input, skip_features, num_filters, bn=True):
     x = tf.keras.layers.Conv2DTranspose(num_filters, (2, 2), strides=2, padding="same")(input)
     x = tf.keras.layers.Concatenate()([x, skip_features])
-    x = conv_block(x, num_filters)
+    x = conv_block(x, num_filters, bn)
+    # x = conv_block(x, num_filters, bn)
     return x
 
 
@@ -524,35 +519,36 @@ def decoder_block(input, skip_features, num_filters):
 
 
 # create generator model based on resnet50 and unet network
-def build_generator_resnet50_unet(input_shape):
+def build_generator_resnet50_unet(inputs):
     # print(inputs)
     # print("pretained start")
     """ Pre-trained ResNet50 Model """
-    resnet50 = tf.keras.applications.ResNet50(include_top=True, weights="imagenet", input_tensor=input_shape)
-
+    resnet50 = tf.keras.applications.ResNet50(include_top=True, weights="imagenet", input_tensor=inputs)
+    
     """ Encoder """
-    s1 = resnet50.get_layer("input_1").output           ## (256 x 256)
-    s2 = resnet50.get_layer("conv1_relu").output        ## (128 x 128)
-    s3 = resnet50.get_layer("conv2_block3_out").output  ## (64 x 64)
-    s4 = resnet50.get_layer("conv3_block4_out").output  ## (32 x 32)
+    s1 = resnet50.get_layer("input_1").output           ## (512 x 512)
+    s2 = resnet50.get_layer("conv1_relu").output        ## (256 x 256)
+    s3 = resnet50.get_layer("conv2_block3_out").output  ## (128 x 128)
+    s4 = resnet50.get_layer("conv3_block4_out").output  ## (64 x 64)
+    s5 = resnet50.get_layer("conv4_block6_out").output  ## (32 x 32)
 
     """ Bridge """
-    b1 = resnet50.get_layer("conv4_block6_out").output  ## (16 x 16)
+    b1 = resnet50.get_layer("conv5_block3_out").output  ## (16 x 16)
 
     """ Decoder """
     x = IMG_H
-    d1 = decoder_block(b1, s4, x)                     ## (32 x 32)
+    d1 = decoder_block(b1, s5, x)                     ## (32 x 32)
     x = x/2
-    d2 = decoder_block(d1, s3, x)                     ## (64 x 64)
+    d2 = decoder_block(d1, s4, x)                     ## (64 x 64)
     x = x/2
-    d3 = decoder_block(d2, s2, x)                     ## (128 x 128)
+    d3 = decoder_block(d2, s3, x)                     ## (128 x 128)
     x = x/2
-    d4 = decoder_block(d3, s1, x)                      ## (256 x 256)
+    d4 = decoder_block(d3, s2, x)                      ## (256 x 256)
+    x = x/2
+    d5 = decoder_block(d4, s1, x)                      ## (512 x 512)
     
     """ Output """
-#     outputs = tf.keras.layers.Conv2D(3, 1, padding="same", activation="sigmoid")(d4)
-    outputs = tf.keras.layers.Conv2D(IMG_C, 1, padding="same", activation="tanh")(d4)
-#     outputs = tf.keras.layers.Conv2D(3, 1, padding="same")(d5)
+    outputs = tf.keras.layers.Conv2D(IMG_C, 1, padding="same", activation="tanh")(d5)
 
     model = tf.keras.models.Model(inputs, outputs)
 
@@ -570,14 +566,18 @@ def build_discriminator(inputs):
     features = []
     for i in range(0, num_layers):
         if i == 0:
-            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
-            x = tf.keras.layers.BatchNormalization()(x)
+            x = tf.keras.layers.DepthwiseConv2D(kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (1, 1),strides=(2,2), padding='same')(x)
+            # x = tf.keras.layers.BatchNormalization()(x)
+            x = tf.keras.layers.LeakyReLU(0.2)(x)
         
         else:
-            x = tf.keras.layers.SeparableConv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.DepthwiseConv2D(kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (1, 1),strides=(2,2), padding='same')(x)
             x = tf.keras.layers.BatchNormalization()(x)
             x = tf.keras.layers.LeakyReLU(0.2)(x)
-            # x = tf.keras.layers.Dropout(0.3)(x)      
+        # x = tf.keras.layers.Dropout(0.3)(x)
+        
         features.append(x)
         
         
@@ -754,19 +754,9 @@ class ResUnetGAN(tf.keras.models.Model):
         self.discriminator.load_weights(d_filepath)
         
         
-        # for left_images, right_images, labels in test_dateset:
         for images, labels in test_dateset:
             loss_rec, loss_feat = 0.0, 0.0
             score = 0
-
-
-            '''for left & right'''
-            # l_score, loss_rec, loss_feat = self.calculate_a_score(left_images)
-            # r_score, r_rec_loss, r_feat_loss = self.calculate_a_score(right_images)
-            # score = max(l_score.numpy(), r_score.numpy())
-            # if score == r_score.numpy():
-            #     loss_rec = r_rec_loss
-            #     loss_feat = r_feat_loss
 
 
             '''for normal'''
@@ -1094,7 +1084,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "contrast_enchanment_20220210"
+    mode = "sc_20220407"
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
@@ -1108,16 +1098,16 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = f"mura_data/{colour}/mura_clean/train_data/normal/*.png"
-    test_data_path = f"mura_data/{colour}/mura_clean/test_data"
+    train_images_path = f"mura_data/{colour}/mura_march_clean/train_data/normal/*.png"
+    test_data_path = f"mura_data/{colour}/mura_march_clean/test_data"
     saved_model_path = f"mura_data/{colour}/saved_model/"
     
     logs_path = f"mura_data/{colour}/logs/"
     
     logs_file = logs_path + "logs_" + name_model + ".csv"
     
-    path_gmodal = saved_model_path + name_model + "_g_model" + ".h5"
-    path_dmodal = saved_model_path +  name_model + "_d_model" + ".h5"
+    path_gmodal = saved_model_path + name_model + "_g_model" + "_best_280_0.77.h5"
+    path_dmodal = saved_model_path +  name_model + "_d_model" + "_best_280_0.77.h5"
     
     """
     Create a MirroredStrategy object. 
@@ -1146,11 +1136,11 @@ if __name__ == "__main__":
     resunetgan.compile(g_optimizer, d_optimizer, logs_file, resume_trainning)
     
     """ run trainning process """
-    train_images = glob(train_images_path)
-    train_images_dataset = load_image_train(train_images, batch_size)
-    train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
+#     train_images = glob(train_images_path)
+#     train_images_dataset = load_image_train(train_images, batch_size)
+#     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=resume_trainning)
+#     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=resume_trainning)
     
     """ run testing """
     class_names = ["normal", "defect"] # normal = 0, defect = 1
