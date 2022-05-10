@@ -18,7 +18,7 @@ import cv2
 # In[ ]:
 
 
-sob_normal_train_img_fn = glob('mura_data/RGB/mura_march_clean/train_data/normal/*.png')
+normal_train_img_fn = glob('mura_data/RGB/mura_march_clean/train_data/normal/*.png')
 
 
 # In[ ]:
@@ -106,7 +106,7 @@ def load_imgs(img_list):
 # In[ ]:
 
 
-b_normal_train_imgs, g_normal_train_imgs, r_normal_train_imgs = load_imgs(sample(sob_normal_train_img_fn,N))
+b_normal_train_imgs, g_normal_train_imgs, r_normal_train_imgs = load_imgs(sample(normal_train_img_fn,N))
 
 print(b_normal_train_imgs.shape)
 print(g_normal_train_imgs.shape)
@@ -116,10 +116,14 @@ print(r_normal_train_imgs.shape)
 # In[ ]:
 
 
-pca = PCA(n_components=256)
-b_normal_train_PCA = pca.fit(b_normal_train_imgs)
-g_normal_train_PCA = pca.fit(g_normal_train_imgs)
-r_normal_train_PCA = pca.fit(r_normal_train_imgs)
+pca_b = PCA(n_components=256)
+pca_g = PCA(n_components=256)
+pca_r = PCA(n_components=256)
+
+b_normal_train_PCA = pca_b.fit(b_normal_train_imgs)
+g_normal_train_PCA = pca_g.fit(g_normal_train_imgs)
+r_normal_train_PCA = pca_r.fit(r_normal_train_imgs)
+
 print(b_normal_train_PCA)
 print(g_normal_train_PCA)
 print(r_normal_train_PCA)
