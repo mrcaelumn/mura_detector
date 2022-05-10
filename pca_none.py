@@ -39,12 +39,12 @@ def sliding_window(image, stepSize=20, windowSize=(256, 256)):
             
             crop_y = y
             if (y + windowSize[0]) > image.shape[0]:
-                crop_y =  ORI_SIZE[0] - windowSize[0]
+                crop_y =  image.shape[0] - windowSize[0]
                 y_end_crop = True
             
             crop_x = x
             if (x + windowSize[1]) > image.shape[1]:
-                crop_x = ORI_SIZE[1] - windowSize[1]
+                crop_x = image.shape[1] - windowSize[1]
                 x_end_crop = True
             
             # print(x, y)
@@ -72,7 +72,7 @@ N,w=10000,256
 def open_image(fn):
     img = cv2.imread(fn)
     # print(img.shape)
-    img = sliding_window(img)
+    # img = sliding_window(img)
     # print(img)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
