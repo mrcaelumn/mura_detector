@@ -9,16 +9,10 @@ import random
 import math
 import os
 import numpy as np
-from PIL import Image
 import time
 from random import sample 
-from sklearn.metrics import roc_auc_score
 from sklearn.decomposition import PCA
 import cv2
-import tensorflow as tf
-from sklearn.metrics import recall_score,accuracy_score
-from sklearn.metrics import precision_score
-from sklearn.metrics import confusion_matrix
 
 
 # In[ ]:
@@ -73,7 +67,7 @@ def sliding_window(image, stepSize=20, windowSize=(256, 256)):
 # In[ ]:
 
 
-N,w=256,256
+N,w=10000,256
 
 def open_image(fn):
     img = cv2.imread(fn)
