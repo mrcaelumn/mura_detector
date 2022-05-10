@@ -171,7 +171,6 @@ def PCA_IMG(inputFile, outputFile, b_inner_pca, g_inner_pca, r_inner_pca):
     img = img_compressed
     cv2.imwrite(outputFile, img)
     # cv2.imwrite("test.png", img)
-    
 
 
 # In[ ]:
@@ -181,7 +180,7 @@ def PCA_IMG(inputFile, outputFile, b_inner_pca, g_inner_pca, r_inner_pca):
 for mode in ["test_data","train_data"]:
     for class_name in ["normal", "defect"]:
         Input_dir = f'mura_data/RGB/mura_march_clean/{mode}/{class_name}/'
-        Out_dir = f'mura_data/RGB/mura_pca_clean/{mode}/{class_name}/'
+        Out_dir = f'mura_data/RGB/mura_pca/{mode}/{class_name}/'
         a = os.listdir(Input_dir)
         index = 0
         for i in a:
@@ -190,7 +189,7 @@ for mode in ["test_data","train_data"]:
 
                 inputFile = Input_dir+i
                 OutputFile = Out_dir+i
-                PCA_IMG(inputFile, OutputFile, b_normal_train_PCA, g_normal_train_PCA, r_normal_train_PCA)
+                PCA_IMG(inputFile, OutputFile, pca_b, pca_g, pca_r)
                 
                 # if index == 1:
                 #     break
