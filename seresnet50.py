@@ -121,6 +121,22 @@ class MultiFeatureLoss(tf.keras.losses.Loss):
         
         return result
 
+class GCAdam(tf.keras.optimizers.Adam):
+    def get_gradients(self, loss, params):
+        # We here just provide a modified get_gradients() function since we are
+        # trying to just compute the centralized gradients.
+
+        grads = []
+        gradients = super().get_gradients()
+        for grad in gradients:
+            grad_len = len(grad.shape)
+            if grad_len > 1:
+                axis = list(range(grad_len - 1))
+                grad -= tf.reduce_mean(grad, axis=axis, keep_dims=True)
+            grads.append(grad)
+
+        return grads
+
 
 # In[ ]:
 
@@ -703,7 +719,7 @@ def build_seresnet50_unet(input_shape):
 
 
     """ Output """
-    outputs = Conv2D(1, 1, padding="same", activation="tanh")(d4)
+    outputs = Conv2D(IMG_C, 1, padding="same", activation="tanh")(d5)
 
     model = Model(inputs, outputs, name="SEResNet50_U-Net")
     return model
@@ -1281,8 +1297,11 @@ if __name__ == "__main__":
     # set input 
     inputs = tf.keras.layers.Input(input_shape, name="input_1")
     
-    g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
-    d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    g_optimizer = GCAdam(learning_rate=learning_rate, beta_1=0.5, beta_2=0.999)
+    d_optimizer = GCAdam(learning_rate=learning_rate, beta_1=0.5, beta_2=0.999)
+
+    # g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    # d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     g_model = build_seresnet50_unet(inputs)
 
     d_model = build_discriminator(inputs)
