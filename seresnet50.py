@@ -690,7 +690,7 @@ def build_seresnet50_unet(input_shape):
     b1 = seresnet50.get_layer("block_out_5_3_x4").output  ## (16 x 16)
 
     """ Decoder """
-    x = IMG_SIZE
+    x = IMG_H
     d1 = decoder_block(b1, s5, x)                     ## (32 x 32)
     x = x/2
     d2 = decoder_block(d1, s4, x)                     ## (64 x 64)
@@ -1242,7 +1242,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "seresnet_20220407"
+    mode = "sc_seresnet_20220407"
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
