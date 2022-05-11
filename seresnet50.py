@@ -675,9 +675,9 @@ def SEResNet50(include_top=True, weights='imagenet',
 
 
 def build_seresnet50_unet(input_shape):
-    inputs = Input(input_shape, name="input_1")
+
     """ Pre-trained ResNet50 Model """
-    seresnet50 = SEResNet50(weights=None, input_tensor=inputs)
+    seresnet50 = SEResNet50(weights=None, input_tensor=input_shape)
     # seresnet50.summary()
     """ Encoder """
     s1 = seresnet50.get_layer("input_1").output           ## (512 x 512)
@@ -690,7 +690,7 @@ def build_seresnet50_unet(input_shape):
     b1 = seresnet50.get_layer("block_out_5_3_x4").output  ## (16 x 16)
 
     """ Decoder """
-    x = IMG_H
+    x = IMG_SIZE
     d1 = decoder_block(b1, s5, x)                     ## (32 x 32)
     x = x/2
     d2 = decoder_block(d1, s4, x)                     ## (64 x 64)
@@ -1283,7 +1283,7 @@ if __name__ == "__main__":
     
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
-    g_model = build_seresnet50_unet(input_shape)
+    g_model = build_seresnet50_unet(inputs)
 
     d_model = build_discriminator(inputs)
 
