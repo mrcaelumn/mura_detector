@@ -1297,8 +1297,8 @@ if __name__ == "__main__":
     # set input 
     inputs = tf.keras.layers.Input(input_shape, name="input_1")
     
-    g_optimizer = GCAdam(learning_rate=learning_rate, beta_1=0.5, beta_2=0.999)
-    d_optimizer = GCAdam(learning_rate=learning_rate, beta_1=0.5, beta_2=0.999)
+    g_optimizer = GCAdam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
+    d_optimizer = GCAdam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
 
     # g_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
     # d_optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.5, beta_2=0.999)
