@@ -30,6 +30,7 @@ from glob import glob
 from tqdm import tqdm
 from packaging import version
 import os
+import gc
 import random
 from random import sample 
 from packaging import version
@@ -167,7 +168,7 @@ def selecting_images_preprocessing(images_path_array, limit_image_to_process="MA
     print("processed number of data: ", len(images_path_array))
     
     df_analysis = pd.DataFrame(columns=['image_path','mean','std'])
-
+    counter = 0
     for img_path in images_path_array:
         image = cv2.imread(img_path)
         # print(image)
@@ -182,9 +183,17 @@ def selecting_images_preprocessing(images_path_array, limit_image_to_process="MA
             # "class": 0
         }
         df_analysis = df_analysis.append(data_row, ignore_index = True)
+        counter += 1
+        if counter % 1000 == 0:
+            print("processed image: ", counter)
     final_df = df_analysis.sort_values(['std', 'mean'], ascending = [True, False])
     
     final_image_path = final_df['image_path'].head(limit_image_to_train).tolist()
+        
+    # clear zombies memory
+    del [[final_df,df_analysis]]
+    gc.collect()
+    
     return final_image_path
 
 
