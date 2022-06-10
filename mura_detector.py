@@ -22,6 +22,7 @@ import tensorflow_io as tfio
 
 import tf_clahe
 
+import cv2
 import numpy as np
 import pandas as pd 
 
@@ -30,6 +31,7 @@ from tqdm import tqdm
 from packaging import version
 import os
 import random
+from random import sample 
 from packaging import version
 from datetime import datetime
 # Import writer class from csv module
@@ -146,20 +148,46 @@ def custom_v3(img):
     img = tfa.image.median_filter2d(img)
     return img
 
-def crop_left_and_right(img, width=256, height=271):
-    # img_shape = tf.shape(img)
-    img_left = tf.image.crop_to_bounding_box(img, 0, 0, height, width)
-    img_right = tf.image.crop_to_bounding_box(img, ORI_SIZE[0] - height, ORI_SIZE[1] - width, height, width)
+def selecting_images_preprocessing(images_path_array, limit_image_to_process="MAX", limit_image_to_train = "MAX"):
+    # images_path_array = glob(images_path)
     
-    return [img_left, img_right]
+    original_number_number_image = len(images_path_array)
+    
+    print("original number of data: ", original_number_number_image)
+    
+    if limit_image_to_train == "MAX":
+        limit_image_to_train = original_number_number_image
+    
+    
+    if len(images_path) < limit_image_to_process:
+        print("The amount of dataset smaller than limit so we will use all images in dataset.")
+    elif limit_image_to_process == "MAX":
+        print("You choose to use all of data. please wait it will take a moment.")
+    else:
+        images_path_array = sample(images_path_array,limit_image_to_process)
+    print("processed number of data: ", len(images_path_array))
+    
+    df_analysis = pd.DataFrame(columns=['image_path','mean','std'])
 
-def crop_left_and_right_select_one(img, width=256, height=271):
-    # img_shape = tf.shape(img)
-    img_left = tf.image.crop_to_bounding_box(img, 0, 0, height, width)
-    img_right = tf.image.crop_to_bounding_box(img, ORI_SIZE[0] - height, ORI_SIZE[1] - width, height, width)
-    if tf.math.reduce_std(img_left) < tf.math.reduce_std(img_right):
-        return img_left
-    return img_right
+    for img_path in images_path_array:
+        image = cv2.imread(img_path)
+        # print(image)
+        mean = np.mean(image)
+        std = np.std(image)
+        # print(mean, image.mean())
+        # print(std, image.std())
+        data_row = {
+            "image_path": img_path,
+            "mean": image.mean(),
+            "std": image.std(),
+            # "class": 0
+        }
+        df_analysis = df_analysis.append(data_row, ignore_index = True)
+    final_df = df_analysis.sort_values(['std', 'mean'], ascending = [True, False])
+    
+    final_image_path = final_df['image_path'].head(limit_image_to_train).tolist()
+    return final_image_path
+
 
 def sliding_crop_and_select_one(img, stepSize=stSize, windowSize=winSize):
     current_std = 0
@@ -307,22 +335,6 @@ def read_data_with_labels(filepath, class_names):
     
     return image_list, label_list
 
-# new function -> create image_list and filename_list
-def read_data_with_filenames(filepath):
-   
-    image_list = []
-    filename_list = []
-    for img in os.listdir(filepath):  
-        if ".DS_Store" != img:
-            image_list.append(os.path.join(filepath,img))
-            filename_list.append(img)
-        
-    image_list, filename_list = shuffle(image_list, filename_list, random_state=random.randint(123, 10000))
-    
-    # return image_list[:LIMIT_TRAIN_IMAGES], filename_list[:LIMIT_TRAIN_IMAGES]
-    return image_list, filename_list
-
-
 
 
 def load_image(image_path):
@@ -330,7 +342,6 @@ def load_image(image_path):
     img = tf.io.decode_png(img, channels=IMG_C)
     # img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img, True)
-    # img = crop_left_and_right_select_one(img)
     img = sliding_crop_and_select_one(img, )
     img = post_stage(img)
 
@@ -341,7 +352,6 @@ def load_image_with_label(image_path, label):
     img = tf.io.decode_png(img, channels=IMG_C)
     # img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img, False)
-    # img = crop_left_and_right(img)
 
     img_list = sliding_crop(img)
     img = [post_stage(a) for a in img_list]
@@ -355,9 +365,14 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     
     images_path = shuffle(images_path, random_state=random.randint(123, 10000))
     
-    if LIMIT_TRAIN_IMAGES != "MAX":
-        images_path = images_path[:LIMIT_TRAIN_IMAGES]
-        
+    # if LIMIT_TRAIN_IMAGES != "MAX":
+    #     images_path = images_path[:LIMIT_TRAIN_IMAGES]
+    
+    images_path = selecting_images_preprocessing(
+        images_path_array = images_path
+        , limit_image_to_process = "MAX"
+        , limit_image_to_train = LIMIT_TRAIN_IMAGES
+    )
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
     
     # tf.size(dataset)
@@ -740,7 +755,8 @@ class ResUnetGAN(tf.keras.models.Model):
 
         loss_feat = multimse(feature_real, feature_fake)
         # print("loss_rec:", loss_rec, "loss_feat:", loss_feat)
-        score = loss_rec + (anomaly_weight * loss_feat)
+        # score = loss_rec + (anomaly_weight * loss_feat)
+        score = (anomaly_weight*loss_rec) + ((1-anomaly_weight) * loss_feat)
         return score, loss_rec, loss_feat
     
     def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
