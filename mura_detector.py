@@ -158,11 +158,10 @@ def selecting_images_preprocessing(images_path_array, limit_image_to_process="MA
     if limit_image_to_train == "MAX":
         limit_image_to_train = original_number_number_image
     
-    
-    if len(images_path) < limit_image_to_process:
-        print("The amount of dataset smaller than limit so we will use all images in dataset.")
-    elif limit_image_to_process == "MAX":
+    if limit_image_to_process == "MAX":
         print("You choose to use all of data. please wait it will take a moment.")
+    elif len(limit_image_to_train) < limit_image_to_process:
+        print("The amount of dataset smaller than limit so we will use all images in dataset.")
     else:
         images_path_array = sample(images_path_array,limit_image_to_process)
     print("processed number of data: ", len(images_path_array))
