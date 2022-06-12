@@ -149,27 +149,10 @@ def custom_v3(img):
     img = tfa.image.median_filter2d(img)
     return img
 
-def selecting_images_preprocessing(images_path_array, limit_image_to_process="MAX", limit_image_to_train = "MAX"):
+def selecting_images_preprocessing(images_path_array, limit_image_to_process="MAX", limit_image_to_train = "MAX", middle_rows=False):
     # images_path_array = glob(images_path)
-    
-    original_number_number_image = len(images_path_array)
-    
-    print("original number of data: ", original_number_number_image)
-    
-    if limit_image_to_train == "MAX":
-        limit_image_to_train = original_number_number_image
-    
-    if limit_image_to_process == "MAX":
-        print("You choose to use all of data. please wait it will take a moment.")
-    elif len(limit_image_to_train) < limit_image_to_process:
-        print("The amount of dataset smaller than limit so we will use all images in dataset.")
-    else:
-        images_path_array = sample(images_path_array,limit_image_to_process)
-    print("processed number of data: ", len(images_path_array))
-    
-    df_analysis = pd.DataFrame(columns=['image_path','mean','std'])
-    counter = 0
-    for img_path in images_path_array:
+    final_image_path = []
+    def processing_image(img_path):
         image = cv2.imread(img_path)
         # print(image)
         mean = np.mean(image)
@@ -182,16 +165,59 @@ def selecting_images_preprocessing(images_path_array, limit_image_to_process="MA
             "std": image.std(),
             # "class": 0
         }
-        df_analysis = df_analysis.append(data_row, ignore_index = True)
-        counter += 1
-        if counter % 1000 == 0:
-            print("processed image: ", counter)
+        return data_row
+    original_number_number_image = len(images_path_array)
+    
+    print("original number of data: ", original_number_number_image)
+    
+    if limit_image_to_train == "MAX":
+        limit_image_to_train = original_number_number_image
+    
+    
+    if len(images_path_array) < limit_image_to_process:
+        print("The amount of dataset smaller than limit so we will use all images in dataset.")
+    elif limit_image_to_process == "MAX":
+        print("You choose to use all of data. please wait it will take a moment.")
+    else:
+        images_path_array = sample(images_path_array,limit_image_to_process)
+    print("processed number of data: ", len(images_path_array))
+    
+    df_analysis = pd.DataFrame(columns=['image_path','mean','std'])
+    counter = 0
+    
+    # multiple processing
+    pool = mp.Pool(5)
+    data_rows = pool.map(processing_image, images_path_array)
+    
+    # print(data_rows)
+    
+    df_analysis = df_analysis.append(data_rows, ignore_index = True)
+    # counter += 1
+    # if counter % 100 == 0:
+    #     print("processed image: ", counter)
+            
     final_df = df_analysis.sort_values(['std', 'mean'], ascending = [True, False])
     
-    final_image_path = final_df['image_path'].head(limit_image_to_train).tolist()
-        
+    
+    if middle_rows:
+        print("get data from middle row")
+        n = len(final_df.index)
+        mid_n = round(n/2)
+        mid_k = round(limit_image_to_train/2)
+
+
+        start = mid_n - mid_k
+        end = mid_n + mid_k
+
+        final = final_df.loc[start:end]
+        final_image_path = final['image_path'].head(limit_image_to_train).tolist()
+    else:
+        print("get data from top row")
+        final_image_path = final_df['image_path'].head(limit_image_to_train).tolist()
+    
+    
     # clear zombies memory
-    del [[final_df,df_analysis]]
+    del [[final_df, df_analysis]]
     gc.collect()
     
     return final_image_path
@@ -380,6 +406,7 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
         images_path_array = images_path
         , limit_image_to_process = "MAX"
         , limit_image_to_train = LIMIT_TRAIN_IMAGES
+        , middle_rows = True
     )
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
     
