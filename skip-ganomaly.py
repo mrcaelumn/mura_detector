@@ -70,6 +70,17 @@ AUTOTUNE = tf.data.AUTOTUNE
 # In[ ]:
 
 
+import argparse
+
+parser = argparse.ArgumentParser(description='Run Resunet GAN')
+parser.add_argument("-dn", "--DATASET_NAME", default="mura_clean", help="name of dataset in data directory.")
+
+args = parser.parse_args()
+
+
+# In[ ]:
+
+
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     # Restrict TensorFlow to only use the first GPU
@@ -1031,13 +1042,6 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Run Resunet GAN')
-    parser.add_argument("-dn", "--DATASET_NAME", default="mura_clean", help="name of dataset in data directory.")
-    
-    args = parser.parse_args()
-    
     '''
     In Default:
     Clahe: OFF
@@ -1063,11 +1067,11 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = f'mura_data/{colour}/{args["DATASET_NAME"]}/train_data/normal/*.png'
-    test_data_path = f'mura_data/{colour}/{args["DATASET_NAME"]}/test_data'
-    saved_model_path = f'mura_data/{colour}/saved_model/'
+    train_images_path = f"mura_data/{colour}/{args["DATASET_NAME"]}/train_data/normal/*.png"
+    test_data_path = f"mura_data/{colour}/{args["DATASET_NAME"]}/test_data"
+    saved_model_path = f"mura_data/{colour}/saved_model/"
     
-    logs_path = f'mura_data/{colour}/logs/'
+    logs_path = f"mura_data/{colour}/logs/"
     
     logs_file = logs_path + "logs_" + name_model + ".csv"
     
