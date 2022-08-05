@@ -52,6 +52,9 @@ IMG_C = 3  ## Change this to 1 for grayscale.
 winSize = (256, 256)
 stSize = 20
 
+TRAINING_DURATION = None
+TESTING_DURATION = None
+
 LIMIT_TRAIN_IMAGES = 5000
 LIMIT_TEST_IMAGES = 200
 EVAL_INTERVAL = 10
@@ -464,12 +467,15 @@ def plot_confusion_matrix(cm, classes,
     plt.savefig(title+'_cm.png')
     plt.show()
     plt.clf()
+    
+def write_result(array_lines, name):
+    with open(f'{name}.txt', 'w+') as f:
+        f.write('\n'.join(array_lines))
 
 
 # In[ ]:
 
 
-# create generator model based on resnet50 and unet network
 def build_generator_autoencoder_unet(input_shape):
     
     conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(input_shape)
@@ -502,7 +508,7 @@ def build_generator_autoencoder_unet(input_shape):
     conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv9)
     conv10 = tf.keras.layers.Conv2D(3, (3, 3), activation='sigmoid', padding='same')(conv9)
     
-    model = tf.keras.models.Model(inputs, outputs)
+    model = tf.keras.models.Model(inputs, conv10)
 
     return model
 
@@ -682,6 +688,8 @@ class SkipGanomaly(tf.keras.models.Model):
     
     def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
         
+        start_time = datetime.now()
+        
         scores_ano = []
         real_label = []
         rec_loss_list = []
@@ -748,19 +756,27 @@ class SkipGanomaly(tf.keras.models.Model):
         
         diagonal_sum = cm.trace()
         sum_of_all_elements = cm.sum()
-
-        print("Accuracy: ", diagonal_sum / sum_of_all_elements )
-        print("False Alarm Rate (FPR): ", FP/(FP+TN))
-        print("Leakage Rat (FNR): ", FN/(FN+TP))
-        print("TNR: ", TN/(FP+TN))
-        print("precision_score: ", TP/(TP+FP))
-        # print("recall_score (func): ", recall_score(real_label, scores_ano))
-        print("recall_score (manual): ", TP/(TP+FN))
-        print("NPV: ", TN/(FN+TN))
-#         F1 = 2 * (precision * recall) / (precision + recall)
-        print("F1-Score: ", f1_score(real_label, scores_ano))
     
+        end_time = datetime.now()
+        TESTING_DURATION = end_time - start_time
+        print(f'Duration of Testing: {end_time - start_time}')
+        arr_result = [
+            f"Model Spec: {name_model}",
+            f"AUC: {auc_out}",
+            f"Threshold: {threshold}",
+            f"Accuracy: {(diagonal_sum / sum_of_all_elements)}",
+            f"False Alarm Rate (FPR): {(FP/(FP+TN))}", 
+            f"TNR: {(TN/(FP+TN))}", 
+            f"Precision Score (PPV): {(TP/(TP+FP))}", 
+            f"Recall Score (TPR): {(TP/(TP+FN))}", 
+            f"NPV: {(TN/(FN+TN))}", 
+            f"F1-Score: {(f1_score(real_label, scores_ano))}", 
+            f"Training Duration: {TRAINING_DURATION}",
+            f"Testing Duration: {TESTING_DURATION}"
+        ]
+        print("\n".join(arr_result))
     
+        write_result(arr_result, name_model)
     
         
     def checking_gen_disc(self, mode, g_filepath, d_filepath, test_data_path):
@@ -956,6 +972,8 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
     class_names = ["normal", "defect"] # normal = 0, defect = 1
     test_dateset = load_image_test(test_data_path, class_names)
     
+    start_time = datetime.now()
+    
     for epoch in range(0, num_epochs):
         epoch += 1
         print("running epoch: ", epoch)
@@ -1001,6 +1019,10 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
                     "the best model saved. at epoch %d: with AUC=%f" % (epoch, auc)
                 )
     
+    end_time = datetime.now()
+    TRAINING_DURATION = end_time - start_time
+    print(f'Duration of Training: {TRAINING_DURATION}')
+    
     plot_epoch_result(epochs_list, gen_loss_list, "Generator_Loss", name_model, "g")
     plot_epoch_result(epochs_list, disc_loss_list, "Discriminator_Loss", name_model, "r")
 
@@ -1009,6 +1031,12 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Run Resunet GAN')
+    parser.add_argument("-dn", "--DATASET_NAME", default="mura_clean", help="name of dataset in data directory.")
+    
+    args = parser.parse_args()
     
     '''
     In Default:
@@ -1021,7 +1049,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = "resunet_20220210"
+    mode = f"skipganomaly_{args['DATASET_NAME']}"
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
@@ -1035,11 +1063,11 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = f"mura_data/{colour}/mura_clean/train_data/normal/*.png"
-    test_data_path = f"mura_data/{colour}/mura_clean/test_data"
-    saved_model_path = f"mura_data/{colour}/saved_model/"
+    train_images_path = f'mura_data/{colour}/{args["DATASET_NAME"]}/train_data/normal/*.png'
+    test_data_path = f'mura_data/{colour}/{args["DATASET_NAME"]}/test_data'
+    saved_model_path = f'mura_data/{colour}/saved_model/'
     
-    logs_path = f"mura_data/{colour}/logs/"
+    logs_path = f'mura_data/{colour}/logs/'
     
     logs_file = logs_path + "logs_" + name_model + ".csv"
     
