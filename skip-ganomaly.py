@@ -1067,8 +1067,8 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = f"mura_data/{colour}/{args["DATASET_NAME"]}/train_data/normal/*.png"
-    test_data_path = f"mura_data/{colour}/{args["DATASET_NAME"]}/test_data"
+    train_images_path = f"mura_data/{colour}/{args['DATASET_NAME']}/train_data/normal/*.png"
+    test_data_path = f"mura_data/{colour}/{args['DATASET_NAME']}/test_data"
     saved_model_path = f"mura_data/{colour}/saved_model/"
     
     logs_path = f"mura_data/{colour}/logs/"
