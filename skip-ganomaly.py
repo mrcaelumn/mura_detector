@@ -312,7 +312,7 @@ def load_image(image_path):
     # img = tf.io.decode_bmp(img, channels=IMG_C)
     img = prep_stage(img, True)
     # img = crop_left_and_right_select_one(img)
-    img = sliding_crop_and_select_one(img, )
+    # img = sliding_crop_and_select_one(img, )
     img = post_stage(img)
 
     return img
@@ -326,10 +326,10 @@ def load_image_with_label(image_path, label):
     # l_img = post_stage(l_img)
     # r_img = post_stage(r_img)
     
-    img_list = sliding_crop(img)
-    img = [post_stage(a) for a in img_list]
+    # img_list = sliding_crop(img)
+    # img = [post_stage(a) for a in img_list]
     
-    # img = post_stage(img)
+    img = post_stage(img)
     # return l_img, r_img, label
     return img, label
 
@@ -716,17 +716,17 @@ class SkipGanomaly(tf.keras.models.Model):
 
 
             '''for normal'''
-            # temp_score, loss_rec, loss_feat = self.calculate_a_score(images)
-            # score = temp_score.numpy()
+            temp_score, loss_rec, loss_feat = self.calculate_a_score(images)
+            score = temp_score.numpy()
 
 
             '''for sliding images'''
-            for image in images:
-                r_score, r_rec_loss, r_feat_loss = self.calculate_a_score(image)
-                if r_score.numpy() > score or score == 0:
-                    score = r_score.numpy()
-                    loss_rec = r_rec_loss
-                    loss_feat = r_feat_loss
+#             for image in images:
+#                 r_score, r_rec_loss, r_feat_loss = self.calculate_a_score(image)
+#                 if r_score.numpy() > score or score == 0:
+#                     score = r_score.numpy()
+#                     loss_rec = r_rec_loss
+#                     loss_feat = r_feat_loss
                 
             scores_ano = np.append(scores_ano, score)
             real_label = np.append(real_label, labels.numpy()[0])
@@ -1053,7 +1053,7 @@ if __name__ == "__main__":
     # run the function here
     """ Set Hyperparameters """
     
-    mode = f"skipganomaly_{args['DATASET_NAME']}"
+    mode = f"skipganomaly_{args.DATASET_NAME}"
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
@@ -1067,8 +1067,8 @@ if __name__ == "__main__":
     print("start: ", name_model)
     
     # set dir of files
-    train_images_path = f"mura_data/{colour}/{args['DATASET_NAME']}/train_data/normal/*.png"
-    test_data_path = f"mura_data/{colour}/{args['DATASET_NAME']}/test_data"
+    train_images_path = f"mura_data/{colour}/{args.DATASET_NAME}/train_data/normal/*.png"
+    test_data_path = f"mura_data/{colour}/{args.DATASET_NAME}/test_data"
     saved_model_path = f"mura_data/{colour}/saved_model/"
     
     logs_path = f"mura_data/{colour}/logs/"
