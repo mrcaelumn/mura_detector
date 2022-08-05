@@ -46,8 +46,8 @@ from tensorflow.keras.utils import Progbar
 import time 
 
 ORI_SIZE = (271, 481)
-IMG_H = 128
-IMG_W = 128
+IMG_H = 64
+IMG_W = 64
 IMG_C = 3  ## Change this to 1 for grayscale.
 winSize = (256, 256)
 stSize = 20

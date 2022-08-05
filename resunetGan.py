@@ -46,8 +46,8 @@ from tensorflow.keras.utils import Progbar
 import time 
 
 ORI_SIZE = (271, 481)
-IMG_H = 128
-IMG_W = 128
+IMG_H = 64
+IMG_W = 64
 IMG_C = 3  ## Change this to 1 for grayscale.
 winSize = (256, 256)
 stSize = 20
@@ -1083,7 +1083,7 @@ if __name__ == "__main__":
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
-    num_epochs = 100
+    num_epochs = 200
     
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
