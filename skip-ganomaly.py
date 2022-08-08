@@ -490,34 +490,34 @@ def write_result(array_lines, name):
 def build_generator_autoencoder_unet(input_shape):
     
     conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(input_shape)
-    conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv1)
+    # conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv1)
     pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv1)
     conv2 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(pool1)
-    conv2 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv2)
+    # conv2 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv2)
     pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv2)
     conv3 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(pool2)
-    conv3 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv3)
+    # conv3 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv3)
     pool3 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv3)
     conv4 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(pool3)
-    conv4 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv4)
+    # conv4 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv4)
     pool4 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv4)
     conv5 = tf.keras.layers.Conv2D(2048, (3, 3), activation='relu', padding='same')(pool4)
-    conv5 = tf.keras.layers.Conv2D(2048, (3, 3), activation='relu', padding='same')(conv5)
+    # conv5 = tf.keras.layers.Conv2D(2048, (3, 3), activation='relu', padding='same')(conv5)
     
     
-    up6 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(1024, (2, 2), strides=(2, 2), padding='same')(conv5), conv4], axis=3)
+    up6 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(1024, (4, 4), strides=(2, 2), padding='same')(conv5), conv4], axis=3)
     conv6 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(up6)
-    conv6 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv6)
-    up7 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same')(conv6), conv3], axis=3)
+    # conv6 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv6)
+    up7 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(512, (4, 4), strides=(2, 2), padding='same')(conv6), conv3], axis=3)
     conv7 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(up7)
-    conv7 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv7)
-    up8 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same')(conv7), conv2], axis=3)
+    # conv7 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv7)
+    up8 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(256, (4, 4), strides=(2, 2), padding='same')(conv7), conv2], axis=3)
     conv8 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(up8)
-    conv8 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv8)
-    up9 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(conv8), conv1], axis=3)
+    # conv8 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv8)
+    up9 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same')(conv8), conv1], axis=3)
     conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(up9)
-    conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv9)
-    conv10 = tf.keras.layers.Conv2D(3, (3, 3), activation='sigmoid', padding='same')(conv9)
+    # conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv9)
+    conv10 = tf.keras.layers.Conv2D(3, (3, 3), activation='tanh', padding='same')(conv9)
     
     model = tf.keras.models.Model(inputs, conv10)
 
@@ -546,7 +546,7 @@ def build_discriminator(inputs):
     
     x = tf.keras.layers.Flatten()(x)
     features = x
-    output = tf.keras.layers.Dense(1, activation="softmax")(x)
+    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
     
     model = tf.keras.models.Model(inputs, outputs = [features, output])
     

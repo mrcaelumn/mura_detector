@@ -570,7 +570,7 @@ def build_discriminator(inputs):
     
     x = tf.keras.layers.Flatten()(x)
     features = x
-    output = tf.keras.layers.Dense(1, activation="softmax")(x)
+    output = tf.keras.layers.Dense(1, activation="sigmoid")(x)
     
     model = tf.keras.models.Model(inputs, outputs = [features, output])
     
