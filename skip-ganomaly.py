@@ -226,14 +226,14 @@ def sliding_crop(img, stepSize=stSize, windowSize=winSize):
 
 # function for  preprocessing data 
 def prep_stage(x, training=True):
-    beta_contrast = 0.1
-    if training:
+#     beta_contrast = 0.1
+#     if training:
         
-        x = enhance_image (x, beta_contrast)
-        # x = custom_v3(x)
+#         x = enhance_image (x, beta_contrast)
+#         # x = custom_v3(x)
         
-    else:
-        x = enhance_image (x, beta_contrast)
+#     else:
+#         x = enhance_image (x, beta_contrast)
         # x = custom_v3(x)
     
     return x
