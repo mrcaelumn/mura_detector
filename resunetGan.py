@@ -46,8 +46,8 @@ from tensorflow.keras.utils import Progbar
 import time 
 
 ORI_SIZE = (271, 481)
-IMG_H = 64
-IMG_W = 64
+IMG_H = 128
+IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
 winSize = (256, 256)
 stSize = 20
@@ -59,7 +59,7 @@ TESTING_DURATION = None
 
 LIMIT_TRAIN_IMAGES = "MAX"
 LIMIT_TEST_IMAGES = "MAX"
-EVAL_INTERVAL = 10
+EVAL_INTERVAL = 20
 
 print("TensorFlow version: ", tf.__version__)
 assert version.parse(tf.__version__).release[0] >= 2,     "This notebook requires TensorFlow 2.0 or above."
@@ -727,7 +727,7 @@ class ResUnetGAN(tf.keras.models.Model):
         score = (anomaly_weight*loss_rec) + ((1-anomaly_weight) * loss_feat)
         return score, loss_rec, loss_feat
     
-    def testing(self, test_dateset, g_filepath, d_filepath, name_model, evaluate=False):
+    def testing(self, test_dataset, g_filepath, d_filepath, name_model, evaluate=False):
         
         start_time = datetime.now()
         
@@ -740,7 +740,7 @@ class ResUnetGAN(tf.keras.models.Model):
         self.discriminator.load_weights(d_filepath)
         
         
-        for images, labels in test_dateset:
+        for images, labels in test_dataset:
             loss_rec, loss_feat = 0.0, 0.0
             score = 0
 
@@ -999,7 +999,7 @@ def set_callbacks(name_model, logs_path, logs_file, path_gmodal, path_dmodal):
 # In[ ]:
 
 
-def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=False, ):
+def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, eval_data_path,resume=False, ):
     init_epoch = 0
     
     epochs_list = []
@@ -1013,7 +1013,7 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
     #     if skip_epoch < num_epochs:
     #         init_epoch = skip_epoch
     class_names = ["normal", "defect"] # normal = 0, defect = 1
-    test_dateset = load_image_test(test_data_path, class_names)
+    test_dataset = load_image_test(eval_data_path, class_names)
     
     for epoch in range(0, num_epochs):
         epoch += 1
@@ -1045,7 +1045,7 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
             print('saved for epoch:', epoch)
         
         if epoch % EVAL_INTERVAL == 0 and epoch >= EVAL_INTERVAL:
-            auc = model.testing(test_dateset, path_gmodal, path_dmodal, name_model, evaluate=True)
+            auc = model.testing(test_dataset, path_gmodal, path_dmodal, name_model, evaluate=True)
             print(
                     "model evaluated at epoch %d: with AUC=%f" % (epoch, auc)
                 )
@@ -1095,6 +1095,7 @@ if __name__ == "__main__":
     # set dir of files
     train_images_path = f"mura_data/{colour}/{args.DATASET_NAME}/train_data/normal/*.png"
     test_data_path = f"mura_data/{colour}/{args.DATASET_NAME}/test_data"
+    eval_data_path = f"mura_data/{colour}/{args.DATASET_NAME}/eval_data"
     saved_model_path = f"mura_data/{colour}/saved_model/"
     
     logs_path = f"mura_data/{colour}/logs/"
@@ -1135,11 +1136,11 @@ if __name__ == "__main__":
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     
-    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, resume=resume_trainning)
+    run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, eval_data_path=eval_data_path, resume=resume_trainning)
     
     """ run testing """
     class_names = ["normal", "defect"] # normal = 0, defect = 1
-    test_dateset = load_image_test(test_data_path, class_names)
-    resunetgan.testing(test_dateset, path_gmodal, path_dmodal, name_model)
+    test_dataset = load_image_test(test_data_path, class_names)
+    resunetgan.testing(test_dataset, path_gmodal, path_dmodal, name_model)
     # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
 
