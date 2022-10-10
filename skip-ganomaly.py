@@ -39,6 +39,7 @@ from sklearn.metrics import roc_curve, auc, precision_score, recall_score, f1_sc
 from sklearn.utils import shuffle
 
 from matplotlib import pyplot as plt
+import seaborn as sns
 import matplotlib.patches as mpatches
 
 # new import
@@ -438,6 +439,27 @@ def plot_loss_with_rlabel(x_value, y_value, real_label, name_model, prefix, labe
     plt.savefig(name_model + "_" + prefix +'_rec_feat_rlabel.png')
     plt.show()
     plt.clf()
+    
+def plot_anomaly_score(score_ano, labels, name, model_name, result_folder=""):
+    df = pd.DataFrame(
+        {'predicts': score_ano,
+         'label': labels
+         })
+
+    df_normal = df[df.label == 0]
+    sns.distplot(df_normal['predicts'], kde=False, label='normal')
+
+    df_defect = df[df.label == 1]
+    sns.distplot(df_defect['predicts'], kde=False, label='defect')
+
+    #     plt.plot(epochs, disc_loss, 'b', label='Discriminator loss')
+    plt.title(name)
+    plt.xlabel('Anomaly Scores')
+    plt.ylabel('Number of samples')
+    plt.legend(prop={'size': 12})
+    plt.savefig(result_folder + model_name + '_' + name + '_anomaly_scores_dist.png')
+    plt.show()
+    plt.clf()
 
 
 # In[ ]:
@@ -749,6 +771,8 @@ class SkipGanomaly(tf.keras.models.Model):
         print("auc: ", auc_out)
         print("threshold: ", threshold)
         
+        # histogram distribution of anomaly scores
+        plot_anomaly_score(scores_ano, real_label, "anomaly_score_dist", name_model)
         
         
         scores_ano = (scores_ano >= threshold).astype(int)
@@ -797,8 +821,8 @@ class SkipGanomaly(tf.keras.models.Model):
 #         path = "mura_data/RGB/test_data/defect/defect.bmp"
 #         path = "rgb_serius_defect/BUTTERFLY (2).bmp"
         paths = {
-            "normal": test_data_path+"/normal/normal.png",
-            "defect": test_data_path+"/defect/defect.png",
+            "normal": glob(test_data_path+"/normal/*.png")[0],
+            "defect": glob(test_data_path+"/defect/*.png")[0],
         }
    
         for i, v in paths.items():
@@ -813,7 +837,9 @@ class SkipGanomaly(tf.keras.models.Model):
             
             
             img = tf.io.read_file(v)
-            img = tf.io.decode_bmp(img, channels=IMG_C)
+            img = tf.io.decode_png(img, channels=IMG_C)
+            img = tf.image.resize(img, (IMG_H, IMG_W))
+            
             
             name_subplot = mode+'_original_'+i
             axes.append( fig.add_subplot(rows, cols, 1) )
@@ -1116,7 +1142,7 @@ if __name__ == "__main__":
     class_names = ["normal", "defect"] # normal = 0, defect = 1
     test_dataset = load_image_test(test_data_path, class_names)
     skipganomaly.testing(test_dataset, path_gmodal, path_dmodal, name_model)
-    # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+    # skipganomaly.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
 
 
 # In[ ]:
