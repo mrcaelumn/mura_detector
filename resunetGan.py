@@ -1166,5 +1166,5 @@ if __name__ == "__main__":
     class_names = ["normal", "defect"] # normal = 0, defect = 1
     test_dataset = load_image_test(test_data_path, class_names)
     resunetgan.testing(test_dataset, path_gmodal, path_dmodal, name_model)
-    # resunetgan.checking_gen_disc(mode, path_gmodal, path_dmodal, test_data_path)
+    # resunetgan.checking_gen_disc(name_model, path_gmodal, path_dmodal, test_data_path)
 
