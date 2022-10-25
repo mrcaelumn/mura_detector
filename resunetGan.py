@@ -254,14 +254,14 @@ def post_stage(x):
 
 def augment_dataset_batch_train(dataset_batch):
 
-    flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
-              num_parallel_calls=AUTOTUNE)
+#     flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
+#               num_parallel_calls=AUTOTUNE)
     
-    flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
-              num_parallel_calls=AUTOTUNE)
+#     flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
+#               num_parallel_calls=AUTOTUNE)
     
-    dataset_batch = dataset_batch.concatenate(flip_up_down)
-    dataset_batch = dataset_batch.concatenate(flip_left_right)
+#     dataset_batch = dataset_batch.concatenate(flip_up_down)
+#     dataset_batch = dataset_batch.concatenate(flip_left_right)
     
     
     return dataset_batch
@@ -1107,7 +1107,7 @@ if __name__ == "__main__":
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
-    num_epochs = 200
+    num_epochs = 100
     
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     

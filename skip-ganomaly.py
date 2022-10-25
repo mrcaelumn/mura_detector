@@ -252,14 +252,14 @@ def post_stage(x):
 
 def augment_dataset_batch_train(dataset_batch):
 
-    flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
-              num_parallel_calls=AUTOTUNE)
+#     flip_up_down = dataset_batch.map(lambda x: (tf.image.flip_up_down(x)), 
+#               num_parallel_calls=AUTOTUNE)
     
-    flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
-              num_parallel_calls=AUTOTUNE)
+#     flip_left_right = dataset_batch.map(lambda x: (tf.image.flip_left_right(x)), 
+#               num_parallel_calls=AUTOTUNE)
     
-    dataset_batch = dataset_batch.concatenate(flip_up_down)
-    dataset_batch = dataset_batch.concatenate(flip_left_right)
+#     dataset_batch = dataset_batch.concatenate(flip_up_down)
+#     dataset_batch = dataset_batch.concatenate(flip_left_right)
     
     
     return dataset_batch
@@ -511,35 +511,35 @@ def write_result(array_lines, name):
 
 def build_generator_autoencoder_unet(input_shape):
     
-    conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(input_shape)
+    conv1 = tf.keras.layers.Conv2D(128, (4, 4), activation='relu', padding='same')(input_shape)
     # conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv1)
     pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv1)
-    conv2 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(pool1)
+    conv2 = tf.keras.layers.Conv2D(256, (4, 4), activation='relu', padding='same')(pool1)
     # conv2 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv2)
     pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv2)
-    conv3 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(pool2)
+    conv3 = tf.keras.layers.Conv2D(512, (4, 4), activation='relu', padding='same')(pool2)
     # conv3 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv3)
     pool3 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv3)
-    conv4 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(pool3)
+    conv4 = tf.keras.layers.Conv2D(1024, (4, 4), activation='relu', padding='same')(pool3)
     # conv4 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv4)
     pool4 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv4)
-    conv5 = tf.keras.layers.Conv2D(2048, (3, 3), activation='relu', padding='same')(pool4)
+    conv5 = tf.keras.layers.Conv2D(2048, (4, 4), activation='relu', padding='same')(pool4)
     # conv5 = tf.keras.layers.Conv2D(2048, (3, 3), activation='relu', padding='same')(conv5)
     
     
     up6 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(1024, (4, 4), strides=(2, 2), padding='same')(conv5), conv4], axis=3)
-    conv6 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(up6)
+    conv6 = tf.keras.layers.Conv2D(1024, (4, 4), activation='relu', padding='same')(up6)
     # conv6 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv6)
     up7 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(512, (4, 4), strides=(2, 2), padding='same')(conv6), conv3], axis=3)
-    conv7 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(up7)
+    conv7 = tf.keras.layers.Conv2D(512, (4, 4), activation='relu', padding='same')(up7)
     # conv7 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv7)
     up8 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(256, (4, 4), strides=(2, 2), padding='same')(conv7), conv2], axis=3)
-    conv8 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(up8)
+    conv8 = tf.keras.layers.Conv2D(256, (4, 4), activation='relu', padding='same')(up8)
     # conv8 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv8)
     up9 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same')(conv8), conv1], axis=3)
-    conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(up9)
+    conv9 = tf.keras.layers.Conv2D(128, (4, 4), activation='relu', padding='same')(up9)
     # conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv9)
-    conv10 = tf.keras.layers.Conv2D(3, (3, 3), activation='tanh', padding='same')(conv9)
+    conv10 = tf.keras.layers.Conv2D(3, (4, 4), activation='tanh', padding='same')(conv9)
     
     model = tf.keras.models.Model(inputs, conv10)
 
@@ -557,11 +557,11 @@ def build_discriminator(inputs):
 
     for i in range(0, num_layers):
         if i == 0:
-            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
             x = tf.keras.layers.BatchNormalization()(x)
         
         else:
-            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
             x = tf.keras.layers.BatchNormalization()(x)
             x = tf.keras.layers.LeakyReLU(0.2)(x)
             # x = tf.keras.layers.Dropout(0.3)(x)      
@@ -586,7 +586,7 @@ class SkipGanomaly(tf.keras.models.Model):
        
         # Regularization Rate for each loss function
         self.ADV_REG_RATE_LF = 1
-        self.REC_REG_RATE_LF = 50
+        self.REC_REG_RATE_LF = 40
         self.FEAT_REG_RATE_LF = 1
         self.field_names = ['epoch', 'gen_loss', 'disc_loss']
         self.d_optimizer = tf.keras.optimizers.Adam(learning_rate=2e-6, beta_1=0.5, beta_2=0.999)
@@ -1083,7 +1083,7 @@ if __name__ == "__main__":
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
-    num_epochs = 200
+    num_epochs = 100
     
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
