@@ -1041,7 +1041,7 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
     
     for epoch in range(0, num_epochs):
         epoch += 1
-        print("running epoch: ", epoch)
+        # print("running epoch: ", epoch)
         # final_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True).take(steps)
         
         result = model.fit(
@@ -1066,7 +1066,7 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
         
         if epoch % 10 == 0 or epoch >= 10 or epoch == num_epochs:
             model.saved_model(path_gmodal, path_dmodal)
-            print('saved for epoch:', epoch)
+            # print('saved for epoch:', epoch)
         
         if epoch % EVAL_INTERVAL == 0 and epoch >= EVAL_INTERVAL:
             auc = model.testing(test_dataset, path_gmodal, path_dmodal, name_model, evaluate=True)
@@ -1112,7 +1112,7 @@ if __name__ == "__main__":
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
     resume_trainning = False
-    lr = 0.0001
+    lr = 0.00002
     
     print("start: ", name_model)
     

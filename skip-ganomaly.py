@@ -511,35 +511,35 @@ def write_result(array_lines, name):
 
 def build_generator_autoencoder_unet(input_shape):
     
-    conv1 = tf.keras.layers.Conv2D(128, (4, 4), activation='relu', padding='same')(input_shape)
+    conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(input_shape)
     # conv1 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv1)
     pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv1)
-    conv2 = tf.keras.layers.Conv2D(256, (4, 4), activation='relu', padding='same')(pool1)
+    conv2 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(pool1)
     # conv2 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv2)
     pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv2)
-    conv3 = tf.keras.layers.Conv2D(512, (4, 4), activation='relu', padding='same')(pool2)
+    conv3 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(pool2)
     # conv3 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv3)
     pool3 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv3)
-    conv4 = tf.keras.layers.Conv2D(1024, (4, 4), activation='relu', padding='same')(pool3)
+    conv4 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(pool3)
     # conv4 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv4)
     pool4 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(conv4)
-    conv5 = tf.keras.layers.Conv2D(2048, (4, 4), activation='relu', padding='same')(pool4)
+    conv5 = tf.keras.layers.Conv2D(2048, (3, 3), activation='relu', padding='same')(pool4)
     # conv5 = tf.keras.layers.Conv2D(2048, (3, 3), activation='relu', padding='same')(conv5)
     
     
-    up6 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(1024, (4, 4), strides=(2, 2), padding='same')(conv5), conv4], axis=3)
-    conv6 = tf.keras.layers.Conv2D(1024, (4, 4), activation='relu', padding='same')(up6)
+    up6 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(1024, (3, 3), strides=(2, 2), padding='same')(conv5), conv4], axis=3)
+    conv6 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(up6)
     # conv6 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(conv6)
-    up7 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(512, (4, 4), strides=(2, 2), padding='same')(conv6), conv3], axis=3)
-    conv7 = tf.keras.layers.Conv2D(512, (4, 4), activation='relu', padding='same')(up7)
+    up7 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(512, (3, 3), strides=(2, 2), padding='same')(conv6), conv3], axis=3)
+    conv7 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(up7)
     # conv7 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(conv7)
-    up8 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(256, (4, 4), strides=(2, 2), padding='same')(conv7), conv2], axis=3)
-    conv8 = tf.keras.layers.Conv2D(256, (4, 4), activation='relu', padding='same')(up8)
+    up8 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(256, (3, 3), strides=(2, 2), padding='same')(conv7), conv2], axis=3)
+    conv8 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(up8)
     # conv8 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(conv8)
-    up9 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same')(conv8), conv1], axis=3)
-    conv9 = tf.keras.layers.Conv2D(128, (4, 4), activation='relu', padding='same')(up9)
+    up9 = tf.keras.layers.concatenate([tf.keras.layers.Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same')(conv8), conv1], axis=3)
+    conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(up9)
     # conv9 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(conv9)
-    conv10 = tf.keras.layers.Conv2D(3, (4, 4), activation='tanh', padding='same')(conv9)
+    conv10 = tf.keras.layers.Conv2D(3, (3, 3), activation='tanh', padding='same')(conv9)
     
     model = tf.keras.models.Model(inputs, conv10)
 
@@ -557,11 +557,11 @@ def build_discriminator(inputs):
 
     for i in range(0, num_layers):
         if i == 0:
-            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
             x = tf.keras.layers.BatchNormalization()(x)
         
         else:
-            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (4, 4), strides=(2, 2), padding='same')(x)
+            x = tf.keras.layers.Conv2D(f[i] * IMG_H ,kernel_size = (3, 3), strides=(2, 2), padding='same')(x)
             x = tf.keras.layers.BatchNormalization()(x)
             x = tf.keras.layers.LeakyReLU(0.2)(x)
             # x = tf.keras.layers.Dropout(0.3)(x)      
@@ -1013,7 +1013,7 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
     
     for epoch in range(0, num_epochs):
         epoch += 1
-        print("running epoch: ", epoch)
+        # print("running epoch: ", epoch)
         # final_dataset = train_dataset.shuffle(buffer_size=3, seed=123, reshuffle_each_iteration=True).take(steps)
         
         result = model.fit(
@@ -1038,7 +1038,7 @@ def run_trainning(model, train_dataset, num_epochs, path_gmodal, path_dmodal, lo
         
         if epoch % 10 == 0 or epoch >= 10 or epoch == num_epochs:
             model.saved_model(path_gmodal, path_dmodal)
-            print('saved for epoch:', epoch)
+            # print('saved for epoch:', epoch)
         
         if epoch % EVAL_INTERVAL == 0 and epoch >= EVAL_INTERVAL:
             auc = model.testing(test_dataset, path_gmodal, path_dmodal, name_model, evaluate=True)
@@ -1088,7 +1088,7 @@ if __name__ == "__main__":
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
     resume_trainning = False
-    lr = 0.0001
+    lr = 0.0003
     
     print("start: ", name_model)
     
