@@ -58,7 +58,7 @@ TRAINING_DURATION = None
 TESTING_DURATION = None
 
 
-LIMIT_TRAIN_IMAGES = "MAX"
+LIMIT_TRAIN_IMAGES = 15
 LIMIT_TEST_IMAGES = "MAX"
 EVAL_INTERVAL = 20
 
@@ -788,13 +788,22 @@ class ResUnetGAN(tf.keras.models.Model):
         
         
         ''' Scale scores vector between [0, 1]'''
-        scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
-        label_axis = ["recon_loss", "scores_anomaly"]
-        plot_loss_with_rlabel(rec_loss_list, scores_ano, real_label, name_model, "anomaly_score", label_axis)
-        # print("scores_ano: ", scores_ano)
-        # print("real_label: ", real_label)
-#         scores_ano = (scores_ano > threshold).astype(int)
-        auc_out, threshold = roc(real_label, scores_ano, name_model)
+        auc_out = 0.0
+        # scores_ano[np.isnan(scores_ano)] = 0
+        try:
+            scores_ano = np.nan_to_num(scores_ano, nan=0)
+            scores_ano = (scores_ano - scores_ano.min())/(scores_ano.max()-scores_ano.min())
+            label_axis = ["recon_loss", "scores_anomaly"]
+            plot_loss_with_rlabel(rec_loss_list, scores_ano, real_label, name_model, "anomaly_score", label_axis)
+            # print("scores_ano: ", scores_ano)
+            # print("real_label: ", real_label)
+#           scores_ano = (scores_ano > threshold).astype(int)
+            auc_out, threshold = roc(real_label, scores_ano, name_model)
+
+        except:
+            print("all data is Nan. Model doesnt work.")
+            pass
+
         if evaluate:
             return auc_out
         
@@ -1105,7 +1114,7 @@ if __name__ == "__main__":
     
     mode = f"resunet_{args.DATASET_NAME}"
     colour = "RGB" # RGB & GS (GrayScale)
-    batch_size = 32
+    batch_size = 1
     steps = 160
     num_epochs = 100
     
