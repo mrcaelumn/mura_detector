@@ -46,24 +46,6 @@ import matplotlib.patches as mpatches
 from tensorflow.keras.utils import Progbar
 import time 
 
-ORI_SIZE = (271, 481)
-IMG_H = 128
-IMG_W = 128
-IMG_C = 3  ## Change this to 1 for grayscale.
-winSize = (256, 256)
-stSize = 20
-
-
-TRAINING_DURATION = None
-TESTING_DURATION = None
-
-
-LIMIT_TRAIN_IMAGES = 15
-LIMIT_TEST_IMAGES = "MAX"
-EVAL_INTERVAL = 20
-
-print("TensorFlow version: ", tf.__version__)
-assert version.parse(tf.__version__).release[0] >= 2,     "This notebook requires TensorFlow 2.0 or above."
 
 # Weight initializers for the Generator network
 WEIGHT_INIT = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.2)
@@ -77,8 +59,32 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Run Resunet GAN')
 parser.add_argument("-dn", "--DATASET_NAME", default="mura_clean", help="name of dataset in data directory.")
+parser.add_argument("-ltr", "--LIMIT_TRAIN_IMAGES", default="MAX", help="number of train data.")
 
 args = parser.parse_args()
+
+
+# In[ ]:
+
+
+ORI_SIZE = (271, 481)
+IMG_H = 128
+IMG_W = 128
+IMG_C = 3  ## Change this to 1 for grayscale.
+winSize = (256, 256)
+stSize = 20
+
+
+TRAINING_DURATION = None
+TESTING_DURATION = None
+
+
+LIMIT_TRAIN_IMAGES = args.LIMIT_TRAIN_IMAGES
+LIMIT_TEST_IMAGES = "MAX"
+EVAL_INTERVAL = 20
+
+print("TensorFlow version: ", tf.__version__)
+assert version.parse(tf.__version__).release[0] >= 2,     "This notebook requires TensorFlow 2.0 or above."
 
 
 # In[ ]:
@@ -1169,7 +1175,12 @@ if __name__ == "__main__":
     train_images_dataset = load_image_train(train_images, batch_size)
     train_images_dataset = train_images_dataset.cache().prefetch(buffer_size=AUTOTUNE)
     
+    start_time = datetime.now()
+    
     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, eval_data_path=eval_data_path, resume=resume_trainning)
+    
+    end_time = datetime.now()
+    global TRAINING_DURATION = end_time - start_time 
     
     """ run testing """
     class_names = ["normal", "defect"] # normal = 0, defect = 1
