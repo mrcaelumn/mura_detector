@@ -78,6 +78,7 @@ stSize = 20
 TRAINING_DURATION = None
 TESTING_DURATION = None
 
+START_TRAINING = datetime.now()
 
 LIMIT_TRAIN_IMAGES = args.LIMIT_TRAIN_IMAGES
 LIMIT_TEST_IMAGES = "MAX"
@@ -851,10 +852,12 @@ class ResUnetGAN(tf.keras.models.Model):
             f"NPV: {(TN/(FN+TN))}", 
             f"F1-Score: {(f1_score(real_label, scores_ano))}", 
             f"Training Duration: {TRAINING_DURATION}",
+            f"Start Duration: {START_TRAINING}",
+            f"End Duration: {datetime.now()}",
             f"Testing Duration: {TESTING_DURATION}"
         ]
         print("\n".join(arr_result))
-    
+        
         write_result(arr_result, name_model)
     
     
@@ -1120,7 +1123,7 @@ if __name__ == "__main__":
     
     mode = f"resunet_{args.DATASET_NAME}"
     colour = "RGB" # RGB & GS (GrayScale)
-    batch_size = 1
+    batch_size = 20
     steps = 160
     num_epochs = 150
     
@@ -1180,7 +1183,7 @@ if __name__ == "__main__":
     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, eval_data_path=eval_data_path, resume=resume_trainning)
     
     end_time = datetime.now()
-    global TRAINING_DURATION
+    # global TRAINING_DURATION
     TRAINING_DURATION = end_time - start_time 
     
     """ run testing """

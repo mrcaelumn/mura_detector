@@ -77,6 +77,7 @@ IMG_C = 3  ## Change this to 1 for grayscale.
 winSize = (256, 256)
 stSize = 20
 
+START_TRAINING = datetime.now()
 TRAINING_DURATION = None
 TESTING_DURATION = None
 
@@ -822,6 +823,8 @@ class SkipGanomaly(tf.keras.models.Model):
             f"NPV: {(TN/(FN+TN))}", 
             f"F1-Score: {(f1_score(real_label, scores_ano))}", 
             f"Training Duration: {TRAINING_DURATION}",
+            f"Start Duration: {START_TRAINING}",
+            f"End Duration: {datetime.now()}",
             f"Testing Duration: {TESTING_DURATION}"
         ]
         print("\n".join(arr_result))
@@ -1090,7 +1093,7 @@ if __name__ == "__main__":
     
     mode = f"skipganomaly_{args.DATASET_NAME}"
     colour = "RGB" # RGB & GS (GrayScale)
-    batch_size = 1
+    batch_size = 20
     steps = 160
     num_epochs = 150
     
@@ -1150,7 +1153,7 @@ if __name__ == "__main__":
     run_trainning(skipganomaly, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, eval_data_path=eval_data_path, resume=resume_trainning)
     
     end_time = datetime.now()
-    global TRAINING_DURATION
+    # global TRAINING_DURATION
     TRAINING_DURATION = end_time - start_time
     print(f'Duration of Training: {TRAINING_DURATION}')
     
