@@ -1180,7 +1180,8 @@ if __name__ == "__main__":
     run_trainning(resunetgan, train_images_dataset, num_epochs, path_gmodal, path_dmodal, logs_path, logs_file, name_model, steps, eval_data_path=eval_data_path, resume=resume_trainning)
     
     end_time = datetime.now()
-    global TRAINING_DURATION = end_time - start_time 
+    global TRAINING_DURATION
+    TRAINING_DURATION = end_time - start_time 
     
     """ run testing """
     class_names = ["normal", "defect"] # normal = 0, defect = 1
