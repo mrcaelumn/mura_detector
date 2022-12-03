@@ -1122,7 +1122,7 @@ if __name__ == "__main__":
     colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 1
     steps = 160
-    num_epochs = 100
+    num_epochs = 150
     
     name_model= f"{str(IMG_H)}_{colour}_{mode}_{str(num_epochs)}_{str(LIMIT_TRAIN_IMAGES)}"
     
