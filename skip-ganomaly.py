@@ -347,8 +347,8 @@ def tf_dataset(images_path, batch_size, labels=False, class_names=None):
     images_path = shuffle(images_path, random_state=random.randint(123, 10000))
     
     if LIMIT_TRAIN_IMAGES != "MAX":
-        LIMIT_TRAIN_IMAGES = int(LIMIT_TRAIN_IMAGES)
-        images_path = images_path[:LIMIT_TRAIN_IMAGES]
+        limit_img = int(LIMIT_TRAIN_IMAGES)
+        images_path = images_path[:limit_img]
         
     dataset = tf.data.Dataset.from_tensor_slices(images_path)
     
