@@ -18,34 +18,25 @@
 import itertools
 import tensorflow as tf
 import tensorflow_addons as tfa
-import tensorflow_io as tfio
-
-import tf_clahe
 
 import numpy as np
 import pandas as pd 
 
 from glob import glob
 from tqdm import tqdm
-from packaging import version
 import os
 import random
 from packaging import version
 from datetime import datetime
-# Import writer class from csv module
 from csv import DictWriter
 
-from sklearn.metrics import roc_curve, auc, precision_score, recall_score, f1_score
+from sklearn.metrics import roc_curve, auc, f1_score
 from sklearn.utils import shuffle
 
 from matplotlib import pyplot as plt
 import seaborn as sns
 import matplotlib.patches as mpatches
-
-# new import
-from tensorflow.keras.utils import Progbar
-import time 
-
+from utility.helper import get_tnr_tpr_custom
 
 # Weight initializers for the Generator network
 WEIGHT_INIT = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.2)
@@ -817,7 +808,10 @@ class ResUnetGAN(tf.keras.models.Model):
         
         print("auc: ", auc_out)
         print("threshold: ", threshold)
-        
+
+        min_tnr = 0.9
+        m_th, m_tnr, m_tpr = get_tnr_tpr_custom(real_label, scores_ano, min_tnr)
+
         # histogram distribution of anomaly scores
         plot_anomaly_score(scores_ano, real_label, "anomaly_score_dist", name_model)
         
@@ -851,7 +845,10 @@ class ResUnetGAN(tf.keras.models.Model):
             f"Precision Score (PPV): {(TP/(TP+FP))}", 
             f"Recall Score (TPR): {(TP/(TP+FN))}", 
             f"NPV: {(TN/(FN+TN))}", 
-            f"F1-Score: {(f1_score(real_label, scores_ano))}", 
+            f"F1-Score: {(f1_score(real_label, scores_ano))}",
+            f"M_Threshold: {m_th}",
+            f"M_TNR: {m_tnr}",
+            f"M_TPR: {m_tpr}",
             f"Training Duration: {TRAINING_DURATION}",
             f"Start Duration: {START_TRAINING}",
             f"End Duration: {datetime.now()}",
