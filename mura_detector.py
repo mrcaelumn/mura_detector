@@ -49,10 +49,26 @@ import matplotlib.patches as mpatches
 from tensorflow.keras.utils import Progbar
 import time 
 
-ORI_SIZE = (271, 481)
+colour = "RGB"
+train_images_path = f"mura_data/{colour}/mura_march_clean/train_data/normal/*.png"
+
+def get_ori_size_from_image(fpath, img_c):
+
+    ext = "png"
+    normal_image = random.choice(glob(f"{fpath}/normal/*.{ext}"))
+    img = tf.io.read_file(normal_image)
+
+    img = tf.io.decode_png(img, channels=img_c)
+
+    height = tf.shape(img)[0]
+    width = tf.shape(img)[1]
+
+    return height.numpy(), width.numpy()
+
 IMG_H = 128
 IMG_W = 128
 IMG_C = 3  ## Change this to 1 for grayscale.
+
 winSize = (256, 256)
 stSize = 20
 
@@ -67,6 +83,7 @@ assert version.parse(tf.__version__).release[0] >= 2,     "This notebook require
 WEIGHT_INIT = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.2)
 AUTOTUNE = tf.data.AUTOTUNE
 
+ORI_SIZE = get_ori_size_from_image(train_images_path, IMG_C)
 
 # In[ ]:
 
@@ -221,6 +238,7 @@ def selecting_images_preprocessing(images_path_array, limit_image_to_process="MA
     gc.collect()
     
     return final_image_path
+
 
 
 def sliding_crop_and_select_one(img, stepSize=stSize, windowSize=winSize):
@@ -1140,7 +1158,6 @@ if __name__ == "__main__":
     """ Set Hyperparameters """
     
     mode = "sc_20220407"
-    colour = "RGB" # RGB & GS (GrayScale)
     batch_size = 32
     steps = 160
     num_epochs = 500
